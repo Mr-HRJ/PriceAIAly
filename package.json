@@ -1,0 +1,38 @@
+{
+  "name": "ai-price-hub",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "node_modules/node/bin/node node_modules/next/dist/bin/next dev --webpack",
+    "build": "node_modules/node/bin/node node_modules/next/dist/bin/next build --webpack",
+    "start": "node_modules/node/bin/node node_modules/next/dist/bin/next start",
+    "lint": "node_modules/node/bin/node node_modules/eslint/bin/eslint.js",
+    "import:aibijia": "node_modules/node/bin/node scripts/import-aibijia.mjs",
+    "collect:prices": "node_modules/node/bin/node scripts/collect-prices.mjs",
+    "collect:browser": "node_modules/node/bin/node scripts/collect-browser.mjs",
+    "migrate:remote:freshness": "node_modules/node/bin/node scripts/apply-remote-migration.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.3",
+    "lucide-react": "^1.14.0",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "node": "^24.14.0",
+    "playwright-core": "^1.59.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

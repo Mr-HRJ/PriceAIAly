@@ -1,0 +1,142 @@
+export type OfferStatus = "in_stock" | "low_stock" | "out_of_stock" | "unknown";
+export type EffectiveOfferStatus =
+  | "available"
+  | "low_confidence"
+  | "unavailable"
+  | "stale"
+  | "failed";
+export type FreshnessStatus = "fresh" | "aging" | "stale" | "expired" | "failed";
+
+export type CollectionMethod =
+  | "aibijia_json"
+  | "browser"
+  | "http"
+  | "manual";
+
+export type Source = {
+  id: string;
+  name: string;
+  baseUrl?: string | null;
+  entryUrl: string;
+  collectionMethod: CollectionMethod;
+  enabled: boolean;
+  notes?: string | null;
+  updatedAt?: string | null;
+};
+
+export type RawOffer = {
+  id: string;
+  sourceId?: string | null;
+  sourceName: string;
+  sourceStoreName?: string | null;
+  sourceTitle: string;
+  price: number | null;
+  currency: string;
+  status: OfferStatus;
+  url: string;
+  tags: string[];
+  stockCount?: number | null;
+  hidden?: boolean;
+  canonicalProductId?: string | null;
+  categorySlug?: string | null;
+  capturedAt?: string | null;
+  sourceUpdatedAt?: string | null;
+  lastSeenAt?: string | null;
+  verifiedAt?: string | null;
+  expiresAt?: string | null;
+  sourcePriority?: number | null;
+  confidence?: number | null;
+  effectiveStatus?: EffectiveOfferStatus | null;
+  freshnessStatus?: FreshnessStatus | null;
+  lastFailedAt?: string | null;
+  failureReason?: string | null;
+};
+
+export type CanonicalProduct = {
+  id: string;
+  slug: string;
+  displayName: string;
+  platform: string;
+  productType: string;
+  spec: string;
+  summary: string;
+  aliases: string[];
+  updatedAt?: string | null;
+};
+
+export type ProductGroup = CanonicalProduct & {
+  offers: RawOffer[];
+  offerCount: number;
+  inStockCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  referenceCount: number;
+  staleCount: number;
+  lowestPrice: number | null;
+  lowestPriceLabel: string;
+  lowestPriceTone: "good" | "warn" | "info" | "muted" | "danger";
+  lowestOffer: RawOffer | null;
+  trustedLowestPrice: number | null;
+  trustedLowestOffer: RawOffer | null;
+  latestSeenAt: string | null;
+  anomalyFlags: string[];
+};
+
+export type DashboardData = {
+  generatedAt: string;
+  configured: boolean;
+  products: ProductGroup[];
+  sources: Source[];
+  rawOffers: RawOffer[];
+};
+
+export type AdminSummary = DashboardData & {
+  crawlRuns: CrawlRun[];
+  pendingSubmissions: ChannelSubmission[];
+};
+
+export type CrawlRun = {
+  id: string;
+  sourceId?: string | null;
+  sourceName?: string | null;
+  mode: CollectionMethod | "aibijia_import";
+  status: "success" | "partial" | "failed";
+  startedAt: string;
+  finishedAt?: string | null;
+  successCount: number;
+  failureCount: number;
+  message?: string | null;
+  details?: Record<string, unknown> | null;
+};
+
+export type OfferInput = {
+  sourceId?: string | null;
+  sourceName: string;
+  sourceUrl: string;
+  sourceStoreName?: string;
+  sourceTitle: string;
+  price?: number | null;
+  currency?: string;
+  status?: OfferStatus;
+  url: string;
+  tags?: string[];
+  stockCount?: number | null;
+};
+
+export type SubmissionStatus = "pending" | "approved" | "rejected";
+
+export type ChannelSubmission = {
+  id: string;
+  url: string;
+  name: string | null;
+  contact: string | null;
+  notes: string | null;
+  parsedTitle: string | null;
+  parsedMeta: Record<string, unknown>;
+  status: SubmissionStatus;
+  reviewerNote: string | null;
+  approvedSourceId: string | null;
+  submitterIp: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
