@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppLogo } from "@/components/AppLogo";
 import { BrandIcon } from "@/components/BrandIcon";
 import {
@@ -34,6 +34,18 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 type SortMode = "available_price" | "price" | "updated" | "channels";
 type ViewMode = "cards" | "table";
 type ScopeMode = "products" | "offers";
+
+export type ExplorerInitialState = {
+  query?: string;
+  platform?: string;
+  productType?: string;
+  stock?: string;
+  sort?: SortMode;
+  minPrice?: string;
+  maxPrice?: string;
+  viewMode?: ViewMode;
+  scopeMode?: ScopeMode;
+};
 
 type PlatformOfferRow = {
   offer: RawOffer;
@@ -52,17 +64,23 @@ const productTypeLabels: Record<string, string> = {
   其他: "其他",
 };
 
-export function PriceExplorer({ data }: { data: DashboardData }) {
-  const [query, setQuery] = useState("");
-  const [platform, setPlatform] = useState("全部");
-  const [productType, setProductType] = useState("全部");
-  const [stock, setStock] = useState("all");
-  const [sort, setSort] = useState<SortMode>("available_price");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+export function PriceExplorer({
+  data,
+  initialState = {},
+}: {
+  data: DashboardData;
+  initialState?: ExplorerInitialState;
+}) {
+  const [query, setQuery] = useState(initialState.query ?? "");
+  const [platform, setPlatform] = useState(initialState.platform ?? "全部");
+  const [productType, setProductType] = useState(initialState.productType ?? "全部");
+  const [stock, setStock] = useState(initialState.stock ?? "all");
+  const [sort, setSort] = useState<SortMode>(initialState.sort ?? "available_price");
+  const [minPrice, setMinPrice] = useState(initialState.minPrice ?? "");
+  const [maxPrice, setMaxPrice] = useState(initialState.maxPrice ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [scopeMode, setScopeMode] = useState<ScopeMode>("products");
+  const [viewMode, setViewMode] = useState<ViewMode>(initialState.viewMode ?? "table");
+  const [scopeMode, setScopeMode] = useState<ScopeMode>(initialState.scopeMode ?? "products");
 
   const products = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -176,6 +194,32 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
   const title = buildTitle(platform, productType, showingOffers);
   const activeFilters = buildActiveFilters({ platform, productType, stock, minPrice, maxPrice });
   const resultCount = showingOffers ? platformOffers.length : products.length;
+  const explorerQueryString = useMemo(
+    () =>
+      buildExplorerSearchParams({
+        query,
+        platform,
+        productType,
+        stock,
+        sort,
+        minPrice,
+        maxPrice,
+        viewMode,
+        scopeMode,
+      }).toString(),
+    [maxPrice, minPrice, platform, productType, query, scopeMode, sort, stock, viewMode],
+  );
+
+  useEffect(() => {
+    if (window.location.pathname !== "/") return;
+
+    const nextUrl = explorerQueryString ? `/?${explorerQueryString}` : "/";
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [explorerQueryString]);
 
   return (
     <div className="min-h-screen bg-[#f9f9f9] text-[#2d3435]">
@@ -376,6 +420,8 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
                 setSort("available_price");
                 setMinPrice("");
                 setMaxPrice("");
+                setViewMode("table");
+                setScopeMode("products");
               }}
               className="h-12 self-end rounded-full bg-white px-4 text-sm font-semibold text-[#2d3435] shadow-[0_12px_35px_rgba(45,52,53,0.04)] ring-1 ring-[#adb3b4]/15 transition hover:bg-[#dde4e5]"
             >
@@ -398,12 +444,12 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
               }`}
             >
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} returnQuery={explorerQueryString} />
               ))}
             </div>
             {viewMode === "table" ? (
               <div className="hidden md:block">
-                <ProductTable products={products} />
+                <ProductTable products={products} returnQuery={explorerQueryString} />
               </div>
             ) : null}
           </>
@@ -419,7 +465,13 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
   );
 }
 
-function ProductTable({ products }: { products: ProductGroup[] }) {
+function ProductTable({
+  products,
+  returnQuery,
+}: {
+  products: ProductGroup[];
+  returnQuery: string;
+}) {
   return (
     <div className="overflow-hidden rounded-lg bg-white shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15">
       <div className="overflow-x-auto">
@@ -441,11 +493,12 @@ function ProductTable({ products }: { products: ProductGroup[] }) {
             {products.map((product) => {
               const previewOffer = product.lowestOffer || product.offers[0];
               const isAvailable = product.inStockCount > 0;
+              const productHref = productDetailHref(product.slug, returnQuery);
 
               return (
                 <tr key={product.id} className="transition hover:bg-[#f7f9f9]">
                   <td className="max-w-[310px] px-5 py-4">
-                    <Link href={`/products/${product.slug}`} className="group flex min-w-0 items-center gap-3">
+                    <Link href={productHref} className="group flex min-w-0 items-center gap-3">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f2f4f4] text-[#5e5e5e]">
                         {platformIcon(product.platform)}
                       </span>
@@ -489,7 +542,7 @@ function ProductTable({ products }: { products: ProductGroup[] }) {
                   <td className="px-5 py-4 text-[#5a6061]">{formatRelativeTime(product.latestSeenAt)}</td>
                   <td className="px-5 py-4">
                     <Link
-                      href={`/products/${product.slug}`}
+                      href={productHref}
                       className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#2d3435] px-3 text-xs font-semibold text-[#f8f8f8] transition hover:bg-[#1f2526]"
                     >
                       查看
@@ -627,9 +680,16 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-function ProductCard({ product }: { product: ProductGroup }) {
+function ProductCard({
+  product,
+  returnQuery,
+}: {
+  product: ProductGroup;
+  returnQuery: string;
+}) {
   const previewOffer = product.lowestOffer || product.offers[0];
   const flags = previewOffer ? collectOfferFlags(previewOffer).slice(0, 2) : [];
+  const productHref = productDetailHref(product.slug, returnQuery);
 
   return (
     <article className="group relative flex min-h-[340px] flex-col overflow-hidden rounded-lg bg-white p-6 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15 transition hover:-translate-y-0.5 hover:shadow-[0_24px_65px_rgba(45,52,53,0.07)]">
@@ -649,7 +709,7 @@ function ProductCard({ product }: { product: ProductGroup }) {
         />
       </div>
 
-      <Link href={`/products/${product.slug}`} className="block">
+      <Link href={productHref} className="block">
         <h2 className="font-serif text-2xl font-semibold leading-tight tracking-normal text-[#202829] transition group-hover:text-[#5e5e5e]">
           {product.displayName}
         </h2>
@@ -688,7 +748,7 @@ function ProductCard({ product }: { product: ProductGroup }) {
 
       <div className="mt-auto pt-6">
         <Link
-          href={`/products/${product.slug}`}
+          href={productHref}
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#5e5e5e] to-[#525252] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:opacity-90"
         >
           查看对比
@@ -885,6 +945,38 @@ function pricePanelClass(tone: ProductGroup["lowestPriceTone"]): string {
 
 function tableStatusClass(isAvailable: boolean): string {
   return isAvailable ? "bg-[#e8f3ec] text-[#2f7a4b]" : "bg-[#fbe9e7] text-[#9b3328]";
+}
+
+function productDetailHref(slug: string, returnQuery: string): string {
+  const path = `/products/${slug}`;
+  return returnQuery ? `${path}?back=${encodeURIComponent(returnQuery)}` : path;
+}
+
+function buildExplorerSearchParams({
+  query,
+  platform,
+  productType,
+  stock,
+  sort,
+  minPrice,
+  maxPrice,
+  viewMode,
+  scopeMode,
+}: Required<ExplorerInitialState>): URLSearchParams {
+  const params = new URLSearchParams();
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery) params.set("q", normalizedQuery);
+  if (platform !== "全部") params.set("platform", platform);
+  if (productType !== "全部") params.set("type", productType);
+  if (stock !== "all") params.set("stock", stock);
+  if (sort !== "available_price") params.set("sort", sort);
+  if (minPrice) params.set("min", minPrice);
+  if (maxPrice) params.set("max", maxPrice);
+  if (viewMode !== "table") params.set("view", viewMode);
+  if (scopeMode === "offers" && platform !== "全部") params.set("scope", scopeMode);
+
+  return params;
 }
 
 function productSortPenalty(product: ProductGroup): number {

@@ -26,12 +26,17 @@ const productTypeLabels: Record<string, string> = {
   其他: "其他",
 };
 
+type DetailSearchParams = Record<string, string | string[] | undefined>;
+
 export default async function ProductDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<DetailSearchParams>;
 }) {
-  const { id } = await params;
+  const [{ id }, queryParams] = await Promise.all([params, searchParams]);
+  const returnHref = buildReturnHref(firstParam(queryParams.back));
   const product = await getProductGroup(id);
 
   if (!product) notFound();
@@ -40,11 +45,11 @@ export default async function ProductDetail({
     <main className="min-h-screen bg-[#f9f9f9] text-[#2d3435]">
       <header className="sticky top-0 z-30 bg-[#f9f9f9]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1300px] items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5a6061] hover:text-[#2d3435]">
+          <Link href={returnHref} className="inline-flex items-center gap-2 text-sm font-semibold text-[#5a6061] hover:text-[#2d3435]">
             <ArrowLeft size={17} />
             返回首页
           </Link>
-          <Link href="/" aria-label="PriceAI 首页" className="shrink-0">
+          <Link href={returnHref} aria-label="PriceAI 首页" className="shrink-0">
             <AppLogo compact />
           </Link>
         </div>
@@ -100,6 +105,26 @@ export default async function ProductDetail({
       </div>
     </main>
   );
+}
+
+function buildReturnHref(back: string | undefined): string {
+  if (!back) return "/";
+
+  const source = new URLSearchParams(back.replace(/^\?/, ""));
+  const safe = new URLSearchParams();
+  const allowedKeys = ["q", "platform", "type", "stock", "sort", "min", "max", "view", "scope"];
+
+  allowedKeys.forEach((key) => {
+    const value = source.get(key);
+    if (value) safe.set(key, value);
+  });
+
+  const query = safe.toString();
+  return query ? `/?${query}` : "/";
+}
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function OfferTable({ offers }: { offers: RawOffer[] }) {
