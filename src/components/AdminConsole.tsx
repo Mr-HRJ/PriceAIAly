@@ -779,6 +779,17 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
                               {probeLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
                               重新试采集
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(buildCollectorContext(submission));
+                                setGlobalMessage({ type: "success", text: "已复制采集器开发上下文。" });
+                              }}
+                              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#adb3b4]/30 bg-white px-3 text-xs font-medium text-[#5a6061] transition-colors hover:bg-[#f2f4f4]"
+                            >
+                              <TerminalSquare size={14} />
+                              复制上下文
+                            </button>
                           </div>
                         </div>
                       );
@@ -1784,6 +1795,29 @@ function replaceSubmission(items: ChannelSubmission[], next: ChannelSubmission):
 
 function isCollectorTodo(submission: ChannelSubmission): boolean {
   return stringMeta(submission.parsedMeta || {}, "review_stage") === "collector_todo";
+}
+
+function buildCollectorContext(submission: ChannelSubmission): string {
+  const meta = submission.parsedMeta || {};
+  const probe = probeResultFromMeta(meta);
+  const domain = stringMeta(meta, "domain") || safeDomain(submission.url) || "";
+  const reason =
+    stringMeta(meta, "collector_todo_reason") ||
+    stringMeta(meta, "support_reason") ||
+    probe?.message ||
+    "当前没有可用自动采集器，需要补解析脚本后重新试采集。";
+
+  return [
+    "请为 PriceAI 新增采集器支持：",
+    `- 来源 URL：${submission.url}`,
+    `- 域名：${domain}`,
+    `- 失败原因：${reason}`,
+    `- 当前识别类型：${stringMeta(meta, "suggested_collector_kind") || probe?.kind || "unsupported"}`,
+    `- 推荐渠道名：${stringMeta(meta, "suggested_source_name") || submission.name || submission.parsedTitle || domain}`,
+    `- 页面样例：${submission.url}`,
+    "- 期望输出字段：sourceTitle, price, status, url, stockCount",
+    `- 验证方式：npm run collect:prices -- --source ${stringMeta(meta, "suggested_source_id") || domain || "<source-id>"}`,
+  ].join("\n");
 }
 
 function suggestedSourceIdForSubmission(submission: ChannelSubmission): string | null {

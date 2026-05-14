@@ -24,6 +24,9 @@ const DUJIAO_HOSTS = new Set([
   "ultra.makelove.cloud",
 ]);
 
+const PRICE_VALUE_PATTERN = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)`;
+const CURRENCY_PRICE_RE = new RegExp(String.raw`[¥￥]\s*${PRICE_VALUE_PATTERN}`);
+
 export async function runPriceCollection(options = {}) {
   const targets = await loadTargets();
   const selectedTargets = selectTargets(targets, options);
@@ -131,7 +134,7 @@ export async function probeSource(options = {}) {
       offers: [],
       ms: Date.now() - startedAt,
       finishedAt: new Date().toISOString(),
-      message: "当前链接暂未识别到自动采集器，可先用浏览器采集或人工补录。",
+      message: "当前链接暂未识别到自动采集器。若渠道真实，请加入采集器待办，补解析脚本后重新试采集。",
     };
   }
 
@@ -460,7 +463,7 @@ async function collectXiaoheiwan(target) {
 async function collectOpensoraHtml(target) {
   const html = await fetchText(target.sourceUrl);
   const pattern =
-    /<img[^>]+alt=["']([^"']+)["'][\s\S]*?<strong>\s*([\d.]+)\s*<\/strong>[\s\S]*?库存[:：]\s*(\d+)[\s\S]*?<a[^>]+href=["']([^"']*\/buy\/\d+[^"']*)["']/gi;
+    new RegExp(String.raw`<img[^>]+alt=["']([^"']+)["'][\s\S]*?<strong>\s*${PRICE_VALUE_PATTERN}\s*<\/strong>[\s\S]*?库存[:：]\s*(\d+)[\s\S]*?<a[^>]+href=["']([^"']*\/buy\/\d+[^"']*)["']`, "gi");
   const offers = [];
   let match;
 
@@ -499,7 +502,7 @@ async function collectMakerichHtml(target) {
 
   for (const block of blocks) {
     const body = stripHtml(block[0]);
-    const priceMatch = body.match(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/);
+    const priceMatch = body.match(CURRENCY_PRICE_RE);
     const stockMatch = body.match(/库存[:：]\s*(\d+)/);
     if (!priceMatch) continue;
 
@@ -507,7 +510,7 @@ async function collectMakerichHtml(target) {
     const stockCount = stockMatch ? numberOrNull(stockMatch[1]) : null;
     const title = cleanText(
       body
-        .replace(/[¥￥]\s*\d+(?:\.\d{1,2})?/, "")
+        .replace(CURRENCY_PRICE_RE, "")
         .replace(/库存[:：]\s*\d+/, "")
         .replace(/销量[:：]\s*\d+/g, ""),
     );
@@ -536,7 +539,7 @@ async function collectBeibeiHtml(target) {
   for (const block of blocks) {
     const body = block[0];
     const title = cleanText(body.match(/<h3>([\s\S]*?)<\/h3>/i)?.[1]);
-    const price = numberOrNull(body.match(/[¥￥]\s*(\d+(?:\.\d{1,2})?)/)?.[1]);
+    const price = numberOrNull(body.match(CURRENCY_PRICE_RE)?.[1]);
     if (!title || price === null || isNonComparableTitle(title)) continue;
 
     const stockMatch = body.match(/库存\s*(\d+)/);

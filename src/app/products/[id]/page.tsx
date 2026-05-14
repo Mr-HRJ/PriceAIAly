@@ -16,10 +16,13 @@ import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const productTypeLabels: Record<string, string> = {
+  "订阅/会员": "订阅/会员",
   会员充值: "订阅/会员",
+  成品账号: "成品账号",
   成品号: "成品账号",
   "邮箱/账号": "邮箱/账号",
   API额度: "API额度",
+  虚拟卡: "虚拟卡",
   其他: "其他",
 };
 
@@ -92,7 +95,7 @@ export default async function ProductDetail({
         </section>
 
         <p className="mt-8 text-xs leading-6 text-[#5a6061]">
-          免责声明：本站仅聚合公开页面或手动录入的报价信息，不参与交易，实际价格、库存、质保和售后规则以原平台为准。
+          免责声明：本站仅聚合公开采集或审核通过的报价信息，不参与交易，实际价格、库存、质保和售后规则以原平台为准。
         </p>
       </div>
     </main>

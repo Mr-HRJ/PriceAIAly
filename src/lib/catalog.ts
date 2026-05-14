@@ -7,77 +7,82 @@ export const platformOptions = [
   "Grok",
   "API/CDK",
   "邮箱",
+  "虚拟卡",
   "其他",
 ] as const;
 
 export const productTypeOptions = [
-  "会员充值",
-  "成品号",
+  "订阅/会员",
+  "成品账号",
   "邮箱/账号",
   "API额度",
+  "虚拟卡",
   "其他",
 ] as const;
 
 export const canonicalCatalog: CanonicalProduct[] = [
   {
-    id: "chatgpt-plus-month",
-    slug: "chatgpt-plus-month",
+    id: "chatgpt-free-account",
+    slug: "chatgpt-free-account",
+    displayName: "ChatGPT 普号",
+    platform: "ChatGPT",
+    productType: "成品账号",
+    spec: "普通账号",
+    summary: "ChatGPT 普号、Free 号、白号或 OpenAI 普通账号。",
+    aliases: ["chatgpt free", "gpt 普号", "openai 普号", "白号", "普通号", "普通账号"],
+  },
+  {
+    id: "chatgpt-plus",
+    slug: "chatgpt-plus",
     displayName: "ChatGPT Plus",
     platform: "ChatGPT",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Plus",
-    summary: "ChatGPT Plus 直充、正规充值、自助开通、卡密或渠道开通。",
-    aliases: ["gpt plus", "chatgpt plus", "plus 月卡", "plus 一个月", "plus 卡密", "plus 直充"],
-  },
-  {
-    id: "chatgpt-plus-account",
-    slug: "chatgpt-plus-account",
-    displayName: "ChatGPT Plus 成品号",
-    platform: "ChatGPT",
-    productType: "成品号",
-    spec: "Plus / 成品账号",
-    summary: "已带 Plus 权益的直登账号或账号资料。",
-    aliases: ["plus 成品号", "plus 独享账号", "plus 账号", "plus 日抛"],
-  },
-  {
-    id: "chatgpt-pro-5x",
-    slug: "chatgpt-pro-5x",
-    displayName: "ChatGPT Pro 5x",
-    platform: "ChatGPT",
-    productType: "会员充值",
-    spec: "Pro / 5x",
-    summary: "ChatGPT Pro 5x 充值、代开或卡密。",
-    aliases: ["pro 5x", "pro x5", "100刀", "100 美元"],
-  },
-  {
-    id: "chatgpt-pro-20x",
-    slug: "chatgpt-pro-20x",
-    displayName: "ChatGPT Pro 20x",
-    platform: "ChatGPT",
-    productType: "会员充值",
-    spec: "Pro / 20x",
-    summary: "ChatGPT Pro 20x 充值、代开或卡密。",
-    aliases: ["pro 20x", "pro x20", "200刀", "200 美元"],
+    summary: "ChatGPT Plus 月卡、成品号、直充、代充、卡密、CDK 或自助开通。",
+    aliases: [
+      "gpt plus",
+      "chatgpt plus",
+      "plus 月卡",
+      "plus 一个月",
+      "plus 卡密",
+      "plus 直充",
+      "plus 成品号",
+      "plus 独享账号",
+      "plus 账号",
+      "plus 日抛",
+      "puls",
+      "pulus",
+    ],
   },
   {
     id: "chatgpt-team-business",
     slug: "chatgpt-team-business",
     displayName: "ChatGPT Team / Business",
     platform: "ChatGPT",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Team / Business",
-    summary: "Team、Business、母号、邀请或自动拉。",
-    aliases: ["team", "business", "母号", "自动拉"],
+    summary: "Team、Business、T5倍、团队号、母号、邀请或自动拉。",
+    aliases: ["team", "business", "t5", "t5倍", "母号", "自动拉", "直拉", "邀请", "团队号"],
   },
   {
-    id: "chatgpt-free-account",
-    slug: "chatgpt-free-account",
-    displayName: "ChatGPT 普号 / Free 号",
+    id: "chatgpt-pro-5x",
+    slug: "chatgpt-pro-5x",
+    displayName: "ChatGPT Pro 5x",
     platform: "ChatGPT",
-    productType: "成品号",
-    spec: "普通账号",
-    summary: "ChatGPT 普号、Free 号、白号或 OpenAI 普通账号。",
-    aliases: ["chatgpt free", "gpt 普号", "openai 普号", "白号", "普通号"],
+    productType: "订阅/会员",
+    spec: "Pro / 5x",
+    summary: "ChatGPT Pro 5x 充值、代开或卡密。",
+    aliases: ["pro 5x", "pro x5", "5倍", "100刀", "100 美元", "100美元"],
+  },
+  {
+    id: "chatgpt-pro-20x",
+    slug: "chatgpt-pro-20x",
+    displayName: "ChatGPT Pro 20x",
+    platform: "ChatGPT",
+    productType: "订阅/会员",
+    spec: "Pro / 20x",
+    summary: "ChatGPT Pro 20x 充值、代开或卡密。",
+    aliases: ["pro 20x", "pro x20", "20倍", "200刀", "200 美元", "200美元"],
   },
   {
     id: "openai-api-cdk",
@@ -94,7 +99,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "claude-pro-month",
     displayName: "Claude Pro",
     platform: "Claude",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Pro",
     summary: "Claude Pro 订阅、直充或卡密。",
     aliases: ["claude pro", "pro 尼区", "claude 月卡"],
@@ -104,7 +109,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "claude-max-5x",
     displayName: "Claude Max 5x",
     platform: "Claude",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Max / 5x",
     summary: "Claude Max 5x 官方套餐、账号或代开。",
     aliases: ["claude max x5", "max 5x"],
@@ -114,7 +119,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "claude-max-20x",
     displayName: "Claude Max 20x",
     platform: "Claude",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Max / 20x",
     summary: "Claude Max 20x 官方套餐、账号或代开。",
     aliases: ["claude max x20", "max 20x"],
@@ -124,7 +129,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "claude-account",
     displayName: "Claude 普号 / 兑换号",
     platform: "Claude",
-    productType: "成品号",
+    productType: "成品账号",
     spec: "普通账号",
     summary: "Claude 普号、free 号、礼品卡兑换专用号。",
     aliases: ["claude free", "claude 普通账号", "claude 普号"],
@@ -134,7 +139,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "gemini-pro-year",
     displayName: "Gemini Pro",
     platform: "Gemini",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Pro",
     summary: "Gemini Pro 年卡、成品号、CDK、优惠链接或自助充值。",
     aliases: ["gemini pro", "gemini 一年", "gemini 12个月", "gemini cdk"],
@@ -144,7 +149,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "gemini-ultra",
     displayName: "Google AI Ultra / Gemini Ultra",
     platform: "Gemini",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Ultra",
     summary: "Gemini Ultra、Google AI Ultra、企业 Ultra、反重力或 Flow 积分。",
     aliases: ["ai ultra", "gemini ultra", "250美元", "反重力", "flow"],
@@ -154,7 +159,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "super-grok",
     displayName: "Super Grok",
     platform: "Grok",
-    productType: "会员充值",
+    productType: "订阅/会员",
     spec: "Super",
     summary: "Super Grok 成品号、卡密、直充、激活码、月卡或年卡。",
     aliases: ["super grok", "supergrok", "grok super", "grok 激活码"],
@@ -164,7 +169,7 @@ export const canonicalCatalog: CanonicalProduct[] = [
     slug: "grok-account",
     displayName: "Grok 普号 / 体验号",
     platform: "Grok",
-    productType: "成品号",
+    productType: "成品账号",
     spec: "普通账号 / 体验",
     summary: "Grok 普号、体验卡、短期成品号。",
     aliases: ["grok 普号", "grok 体验", "直登成品"],
@@ -180,21 +185,48 @@ export const canonicalCatalog: CanonicalProduct[] = [
     aliases: ["gmail", "google 邮箱", "outlook", "hotmail", "微软邮箱", "域名邮箱"],
   },
   {
+    id: "virtual-card",
+    slug: "virtual-card",
+    displayName: "虚拟卡",
+    platform: "虚拟卡",
+    productType: "虚拟卡",
+    spec: "VISA / MasterCard",
+    summary: "VISA、MasterCard、0刀卡、1刀卡、BIN 卡或虚拟信用卡。",
+    aliases: ["visa", "mastercard", "虚拟卡", "虚拟信用卡", "0刀卡", "1刀卡", "bin 卡", "485954"],
+  },
+  {
     id: "other-product",
     slug: "other-product",
     displayName: "其他商品",
     platform: "其他",
     productType: "其他",
     spec: "其他",
-    summary: "Cursor、Kiro、Suno、Windsurf、X Premium、社交账号、接码、虚拟卡、代理、教程等。",
+    summary: "Cursor、Kiro、Suno、Windsurf、X Premium、社交账号、接码、代理、教程等。",
     aliases: ["other", "cursor", "kiro", "suno", "windsurf"],
   },
 ];
 
 const catalogById = new Map(canonicalCatalog.map((item) => [item.id, item]));
+const legacyCanonicalIdMap: Record<string, string> = {
+  "chatgpt-plus-month": "chatgpt-plus",
+  "chatgpt-plus-account": "chatgpt-plus",
+};
 
 export function getCanonicalProduct(id: string): CanonicalProduct {
-  return catalogById.get(id) ?? catalogById.get("other-product")!;
+  return catalogById.get(legacyCanonicalIdMap[id] || id) ?? catalogById.get("other-product")!;
+}
+
+export function resolveOfferProduct(
+  offer: RawOffer,
+  canonicalProducts: CanonicalProduct[] = canonicalCatalog,
+): CanonicalProduct {
+  const canonicalMap = new Map(canonicalProducts.map((product) => [product.id, product]));
+  const mappedId = offer.canonicalProductId ? legacyCanonicalIdMap[offer.canonicalProductId] || offer.canonicalProductId : null;
+
+  if (mappedId && catalogById.has(mappedId)) return getCanonicalProduct(mappedId);
+  if (mappedId && canonicalMap.has(mappedId)) return canonicalMap.get(mappedId)!;
+
+  return classifyOffer(offer.sourceTitle, { tags: offer.tags, categorySlug: offer.categorySlug });
 }
 
 export function classifyOffer(
@@ -204,9 +236,14 @@ export function classifyOffer(
     categorySlug?: string | null;
   } = {},
 ): CanonicalProduct {
-  const value = normalizeTitle([title, normalizeTags(context.tags), context.categorySlug].filter(Boolean).join(" "));
+  const value = normalizeTitle(title);
+  const contextValue = normalizeTitle([normalizeTags(context.tags), context.categorySlug].filter(Boolean).join(" "));
 
-  if (isSupportService(value) || isOtherTool(value)) {
+  if (isVirtualCardProduct(value)) {
+    return getCanonicalProduct("virtual-card");
+  }
+
+  if (isSupportService(value)) {
     return getCanonicalProduct("other-product");
   }
 
@@ -259,21 +296,21 @@ export function classifyOffer(
       return getCanonicalProduct("chatgpt-pro-5x");
     }
 
-    if (isChatGptTeam(value)) {
-      return getCanonicalProduct("chatgpt-team-business");
+    if (matches(value, ["plus"])) {
+      return getCanonicalProduct("chatgpt-plus");
     }
 
-    if (matches(value, ["plus"])) {
-      if (matches(value, ["成品", "账号", "独享", "普号", "直登", "日抛", "首登"])) {
-        return getCanonicalProduct("chatgpt-plus-account");
-      }
-
-      return getCanonicalProduct("chatgpt-plus-month");
+    if (isChatGptTeam(value)) {
+      return getCanonicalProduct("chatgpt-team-business");
     }
 
     if (matches(value, ["free", "普号", "白号", "普通号", "空白账号", "长效"])) {
       return getCanonicalProduct("chatgpt-free-account");
     }
+  }
+
+  if (isOtherTool(value)) {
+    return getCanonicalProduct("other-product");
   }
 
   if (matches(value, ["codex", "api", "cdk", "token", "额度", "中转", "余额"])) {
@@ -284,6 +321,10 @@ export function classifyOffer(
     return getCanonicalProduct("email-account");
   }
 
+  if (contextValue && matches(contextValue, ["chatgpt", "openai"]) && matches(value, ["plus"])) {
+    return getCanonicalProduct("chatgpt-plus");
+  }
+
   return getCanonicalProduct("other-product");
 }
 
@@ -292,12 +333,9 @@ export function buildProductGroups(
   canonicalProducts: CanonicalProduct[] = canonicalCatalog,
 ): ProductGroup[] {
   const map = new Map<string, ProductGroup>();
-  const canonicalMap = new Map(canonicalProducts.map((product) => [product.id, product]));
 
   for (const offer of offers.filter((item) => !item.hidden)) {
-    const product =
-      (offer.canonicalProductId && canonicalMap.get(offer.canonicalProductId)) ||
-      classifyOffer(offer.sourceTitle, { tags: offer.tags, categorySlug: offer.categorySlug });
+    const product = resolveOfferProduct(offer, canonicalProducts);
 
     const current =
       map.get(product.id) ||
@@ -402,7 +440,6 @@ export function collectOfferFlags(offer: RawOffer): string[] {
 
   if (!isAvailable(offer)) flags.add("缺货");
   if (offer.tags.some((tag) => tag.includes("无质保"))) flags.add("无质保");
-  if (offer.price !== null && offer.price > 0 && offer.price < 1) flags.add("超低价");
 
   return Array.from(flags);
 }
@@ -413,7 +450,6 @@ function collectProductFlags(product: ProductGroup): string[] {
     collectOfferFlags(offer).forEach((flag) => flags.add(flag));
   }
 
-  if (product.lowestPrice !== null && product.lowestPrice < 1) flags.add("含异常低价");
   if (product.inStockCount === 0) flags.add("全部缺货");
 
   return Array.from(flags);
@@ -442,7 +478,12 @@ function isExpired(value: string | null | undefined): boolean {
 function normalizeTitle(title: string): string {
   return title
     .toLowerCase()
+    .replace(/[×]/g, "x")
     .replace(/[｜|/【】[\]()（）,，:：\-_/]+/g, " ")
+    .replace(/\bpuls\b/g, "plus")
+    .replace(/\bpulus\b/g, "plus")
+    .replace(/chat\s*gpt/g, "chatgpt")
+    .replace(/supergrok/g, "super grok")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -454,7 +495,7 @@ function normalizeTags(tags: string[] | string | null | undefined): string {
 }
 
 function isSupportService(value: string): boolean {
-  if (matches(value, ["教程", "虚拟卡", "0刀卡", "电话卡", "手机套餐", "paypal接码", "验证码", "代理服务", "并发数"])) {
+  if (matches(value, ["教程", "电话卡", "手机套餐", "paypal接码", "验证码", "代理服务", "并发数"])) {
     return true;
   }
 
@@ -484,6 +525,14 @@ function isApiProduct(value: string): boolean {
   if (matches(value, ["余额兑换", "余额 兑换", "倍率"])) return true;
 
   return false;
+}
+
+function isVirtualCardProduct(value: string): boolean {
+  if (matches(value, ["visa", "mastercard", "虚拟卡", "虚拟信用卡", "0刀卡", "1刀卡", "bin 卡", "485954"])) {
+    return true;
+  }
+
+  return matches(value, ["美国卡", "卡头"]) && !matches(value, ["chatgpt", "claude", "gemini", "grok"]);
 }
 
 function isPureEmail(value: string): boolean {
@@ -516,20 +565,20 @@ function isGrokProduct(value: string): boolean {
 
 function isChatGptProduct(value: string): boolean {
   if (matches(value, ["gemini", "claude", "grok"])) return false;
-  return matches(value, ["chatgpt", "gpt", "openai", "plus", "team", "business"]);
+  return matches(value, ["chatgpt", "gpt", "openai", "plus", "team", "business", "t5"]);
 }
 
 function isChatGptPro20(value: string): boolean {
   if (matches(value, ["gemini", "claude"])) return false;
-  return matches(value, ["pro", "gpt pro", "chatgpt pro"]) && matches(value, ["20x", "x20", "200刀", "200 美元", "200美元"]);
+  return matches(value, ["pro", "gpt pro", "chatgpt pro"]) && matches(value, ["20x", "x20", "20倍", "200刀", "200 美元", "200美元"]);
 }
 
 function isChatGptPro5(value: string): boolean {
   if (matches(value, ["gemini", "claude"])) return false;
-  return matches(value, ["pro", "gpt pro", "chatgpt pro"]) && matches(value, ["5x", "x5", "100刀", "100 美元", "100美元"]);
+  return matches(value, ["pro", "gpt pro", "chatgpt pro"]) && matches(value, ["5x", "x5", "5倍", "100刀", "100 美元", "100美元"]);
 }
 
 function isChatGptTeam(value: string): boolean {
   if (matches(value, ["gemini", "claude", "grok"])) return false;
-  return matches(value, ["team", "business", "母号", "自动拉", "直拉", "拼车位", "邀请"]);
+  return matches(value, ["team", "business", "t5", "t5倍", "母号", "自动拉", "直拉", "拼车位", "邀请", "团队号", "团队席位"]);
 }

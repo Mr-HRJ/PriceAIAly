@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Database,
+  ExternalLink,
   Filter,
   LayoutGrid,
   Layers3,
@@ -19,19 +20,35 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { AppLogo } from "@/components/AppLogo";
 import { BrandIcon } from "@/components/BrandIcon";
-import { collectOfferFlags, platformOptions, productTypeOptions } from "@/lib/catalog";
-import type { DashboardData, ProductGroup } from "@/lib/types";
+import {
+  collectOfferFlags,
+  compareOffers,
+  isAvailable,
+  platformOptions,
+  productTypeOptions,
+  resolveOfferProduct,
+} from "@/lib/catalog";
+import type { CanonicalProduct, DashboardData, ProductGroup, RawOffer } from "@/lib/types";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
 type SortMode = "available_price" | "price" | "updated" | "channels";
 type ViewMode = "cards" | "table";
+type ScopeMode = "products" | "offers";
+
+type PlatformOfferRow = {
+  offer: RawOffer;
+  product: CanonicalProduct;
+};
 
 const productTypeLabels: Record<string, string> = {
   全部: "全部",
+  "订阅/会员": "订阅/会员",
   会员充值: "订阅/会员",
+  成品账号: "成品账号",
   成品号: "成品账号",
   "邮箱/账号": "邮箱/账号",
   API额度: "API额度",
+  虚拟卡: "虚拟卡",
   其他: "其他",
 };
 
@@ -45,6 +62,7 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
   const [maxPrice, setMaxPrice] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("products");
 
   const products = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -105,10 +123,59 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
     });
   }, [data.products, maxPrice, minPrice, platform, productType, query, sort, stock]);
 
+  const platformOffers = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const min = minPrice ? Number(minPrice) : null;
+    const max = maxPrice ? Number(maxPrice) : null;
+
+    const rows = data.rawOffers
+      .filter((offer) => !offer.hidden)
+      .map((offer) => ({
+        offer,
+        product: resolveOfferProduct(offer, data.products),
+      }))
+      .filter(({ offer, product }) => {
+        const haystack = [
+          offer.sourceTitle,
+          offer.sourceName,
+          offer.sourceStoreName || "",
+          product.displayName,
+          product.platform,
+          product.productType,
+          product.spec,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (normalizedQuery && !haystack.includes(normalizedQuery)) return false;
+        if (platform !== "全部" && product.platform !== platform) return false;
+        if (productType !== "全部" && product.productType !== productType) return false;
+        if (stock === "available" && !isAvailable(offer)) return false;
+        if (stock === "out_of_stock" && isAvailable(offer)) return false;
+        if (offer.price === null && (min !== null || max !== null)) return false;
+        if (offer.price !== null && min !== null && offer.price < min) return false;
+        if (offer.price !== null && max !== null && offer.price > max) return false;
+
+        return true;
+      });
+
+    return rows.sort((a, b) => {
+      if (sort === "updated") return (offerTimestamp(b.offer) || "").localeCompare(offerTimestamp(a.offer) || "");
+      if (sort === "channels") return sourceLabel(a.offer).localeCompare(sourceLabel(b.offer), "zh-CN");
+      if (sort === "price") {
+        return (a.offer.price ?? Number.MAX_SAFE_INTEGER) - (b.offer.price ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      return compareOffers(a.offer, b.offer);
+    });
+  }, [data.products, data.rawOffers, maxPrice, minPrice, platform, productType, query, sort, stock]);
+
   const totalAvailable = data.products.reduce((sum, product) => sum + product.inStockCount, 0);
   const totalOutOfStock = data.products.reduce((sum, product) => sum + product.outOfStockCount, 0);
-  const title = buildTitle(platform, productType);
+  const showingOffers = scopeMode === "offers" && platform !== "全部";
+  const title = buildTitle(platform, productType, showingOffers);
   const activeFilters = buildActiveFilters({ platform, productType, stock, minPrice, maxPrice });
+  const resultCount = showingOffers ? platformOffers.length : products.length;
 
   return (
     <div className="min-h-screen bg-[#f9f9f9] text-[#2d3435]">
@@ -157,7 +224,7 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
             <div className="mt-4 flex flex-wrap items-center gap-3 text-[0.72rem] font-medium text-[#5a6061]">
               <span>最近更新：{formatRelativeTime(data.generatedAt)}</span>
               <span className="h-1 w-1 rounded-full bg-[#adb3b4]" />
-              <span>{products.length} 个商品</span>
+              <span>{resultCount} {showingOffers ? "条报价" : "个商品"}</span>
               <span className="h-1 w-1 rounded-full bg-[#adb3b4]" />
               <span>主价格优先取有货最低价，缺货会明显标注</span>
             </div>
@@ -189,18 +256,48 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
               <Filter size={17} />
               筛选{activeFilters.length ? ` ${activeFilters.length}` : ""}
             </button>
+            {platform !== "全部" ? (
+              <div className="inline-flex h-11 shrink-0 items-center rounded-full bg-[#e4e9ea] p-1 md:hidden">
+                <ViewToggleButton
+                  active={scopeMode === "products"}
+                  icon={<PackageCheck size={16} />}
+                  label="标准"
+                  onClick={() => setScopeMode("products")}
+                />
+                <ViewToggleButton
+                  active={scopeMode === "offers"}
+                  icon={<Table2 size={16} />}
+                  label="报价"
+                  onClick={() => setScopeMode("offers")}
+                />
+              </div>
+            ) : null}
             <div className="hidden h-11 shrink-0 items-center rounded-full bg-[#e4e9ea] p-1 md:inline-flex">
+              {platform !== "全部" ? (
+                <ViewToggleButton
+                  active={scopeMode === "offers"}
+                  icon={<Table2 size={16} />}
+                  label="全部报价"
+                  onClick={() => setScopeMode("offers")}
+                />
+              ) : null}
               <ViewToggleButton
-                active={viewMode === "cards"}
+                active={scopeMode === "products" && viewMode === "cards"}
                 icon={<LayoutGrid size={16} />}
                 label="卡片"
-                onClick={() => setViewMode("cards")}
+                onClick={() => {
+                  setScopeMode("products");
+                  setViewMode("cards");
+                }}
               />
               <ViewToggleButton
-                active={viewMode === "table"}
+                active={scopeMode === "products" && viewMode === "table"}
                 icon={<Table2 size={16} />}
                 label="表格"
-                onClick={() => setViewMode("table")}
+                onClick={() => {
+                  setScopeMode("products");
+                  setViewMode("table");
+                }}
               />
             </div>
             <label className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#e4e9ea] px-5 text-sm font-semibold text-[#2d3435]">
@@ -287,7 +384,13 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
           </div>
         ) : null}
 
-        {products.length ? (
+        {showingOffers ? (
+          platformOffers.length ? (
+            <PlatformOfferTable rows={platformOffers} />
+          ) : (
+            <EmptyState text="没有符合条件的报价" />
+          )
+        ) : products.length ? (
           <>
             <div
               className={`grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 ${
@@ -305,10 +408,7 @@ export function PriceExplorer({ data }: { data: DashboardData }) {
             ) : null}
           </>
         ) : (
-          <div className="rounded-lg bg-white px-6 py-16 text-center shadow-[0_20px_60px_rgba(45,52,53,0.05)] ring-1 ring-[#adb3b4]/15">
-            <p className="font-serif text-2xl font-semibold text-[#202829]">没有符合条件的报价</p>
-            <p className="mt-3 text-sm text-[#5a6061]">放宽筛选条件，或者提交新的可采集渠道。</p>
-          </div>
+          <EmptyState text="没有符合条件的商品" />
         )}
       </main>
 
@@ -402,6 +502,127 @@ function ProductTable({ products }: { products: ProductGroup[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function PlatformOfferTable({ rows }: { rows: PlatformOfferRow[] }) {
+  return (
+    <>
+      <div className="hidden overflow-hidden rounded-lg bg-white shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15 md:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-[960px] w-full border-collapse text-left text-sm">
+            <thead className="bg-[#f2f4f4] text-[0.68rem] font-semibold text-[#5a6061]">
+              <tr>
+                <TableHead>状态</TableHead>
+                <TableHead>渠道</TableHead>
+                <TableHead>原始商品名</TableHead>
+                <TableHead>价格</TableHead>
+                <TableHead>最近确认</TableHead>
+                <TableHead>操作</TableHead>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#edf0f1]">
+              {rows.map(({ offer }) => {
+                const available = isAvailable(offer);
+
+                return (
+                  <tr key={offer.id} className={`transition hover:bg-[#f7f9f9] ${available ? "" : "bg-[#fbf7f6]"}`}>
+                    <td className="px-5 py-4">
+                      <OfferStatusBadge available={available} />
+                    </td>
+                    <td className="max-w-[220px] px-5 py-4">
+                      <span className="block truncate font-semibold text-[#202829]">{sourceLabel(offer)}</span>
+                      {sourceSecondaryLabel(offer) ? (
+                        <span className="mt-1 block truncate text-xs text-[#5a6061]">{sourceSecondaryLabel(offer)}</span>
+                      ) : null}
+                    </td>
+                    <td className="max-w-[460px] px-5 py-4">
+                      <span className="block truncate text-[#2d3435]">{offer.sourceTitle}</span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`text-lg font-bold ${available ? "text-[#202829]" : "text-[#9b3328]"}`}>
+                        {formatCurrency(offer.price, offer.currency)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-[#5a6061]">{formatRelativeTime(offerTimestamp(offer))}</td>
+                    <td className="px-5 py-4">
+                      <OfferAction offer={offer} available={available} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="grid gap-3 md:hidden">
+        {rows.map(({ offer }) => (
+          <PlatformOfferCard key={offer.id} offer={offer} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function PlatformOfferCard({ offer }: { offer: RawOffer }) {
+  const available = isAvailable(offer);
+
+  return (
+    <article className={`rounded-lg p-4 shadow-[0_16px_45px_rgba(45,52,53,0.04)] ring-1 ${available ? "bg-white ring-[#adb3b4]/15" : "bg-[#fbf7f6] ring-[#ead8d5]"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-[#202829]">{sourceLabel(offer)}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-[#5a6061]">{offer.sourceTitle}</p>
+        </div>
+        <OfferStatusBadge available={available} />
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <div>
+          <p className={`text-2xl font-bold tracking-normal ${available ? "text-[#202829]" : "text-[#9b3328]"}`}>
+            {formatCurrency(offer.price, offer.currency)}
+          </p>
+          <p className="mt-1 text-xs text-[#5a6061]">{formatRelativeTime(offerTimestamp(offer))}</p>
+        </div>
+        <OfferAction offer={offer} available={available} />
+      </div>
+    </article>
+  );
+}
+
+function OfferStatusBadge({ available }: { available: boolean }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
+        available ? "bg-[#e8f3ec] text-[#2f7a4b]" : "bg-[#fbe9e7] text-[#9b3328]"
+      }`}
+    >
+      {available ? "有货" : "缺货"}
+    </span>
+  );
+}
+
+function OfferAction({ offer, available }: { offer: RawOffer; available: boolean }) {
+  return (
+    <a
+      href={offer.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition hover:opacity-90 ${
+        available ? "bg-[#2d3435] text-[#f8f8f8]" : "bg-[#ead8d5] text-[#8f2f24]"
+      }`}
+    >
+      {available ? "前往购买" : "查看"}
+      <ExternalLink size={14} />
+    </a>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg bg-white px-6 py-16 text-center shadow-[0_20px_60px_rgba(45,52,53,0.05)] ring-1 ring-[#adb3b4]/15">
+      <p className="font-serif text-2xl font-semibold text-[#202829]">{text}</p>
+      <p className="mt-3 text-sm text-[#5a6061]">放宽筛选条件，或者提交新的可采集渠道。</p>
     </div>
   );
 }
@@ -674,11 +895,20 @@ function productSortPenalty(product: ProductGroup): number {
     penalty += 200;
   }
 
-  if ((product.lowestPrice ?? Number.MAX_SAFE_INTEGER) < 0.1) {
-    penalty += 100;
-  }
-
   return penalty;
+}
+
+function offerTimestamp(offer: RawOffer): string | null | undefined {
+  return offer.verifiedAt || offer.lastSeenAt || offer.capturedAt || offer.sourceUpdatedAt;
+}
+
+function sourceLabel(offer: RawOffer): string {
+  return offer.sourceStoreName || offer.sourceName || "未记录渠道";
+}
+
+function sourceSecondaryLabel(offer: RawOffer): string | null {
+  if (!offer.sourceName || offer.sourceName === sourceLabel(offer)) return null;
+  return offer.sourceName;
 }
 
 function buildActiveFilters({
@@ -703,8 +933,10 @@ function buildActiveFilters({
   return filters;
 }
 
-function buildTitle(platform: string, productType: string): string {
+function buildTitle(platform: string, productType: string, showingOffers = false): string {
   const platformName = platform === "全部" ? "全平台" : platform;
+  if (showingOffers) return `${platformName} 全部报价`;
+
   const typeName = productType === "全部" ? "标准商品" : productTypeLabels[productType] || productType;
   return `${platformName} ${typeName}报价`;
 }

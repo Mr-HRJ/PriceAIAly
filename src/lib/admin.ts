@@ -3,7 +3,7 @@ import "server-only";
 import { promises as dns } from "node:dns";
 import net from "node:net";
 
-import { classifyOffer } from "./catalog";
+import { canonicalCatalog, classifyOffer } from "./catalog";
 import { freshnessFields } from "./freshness";
 import { getSupabaseServerClient } from "./supabase";
 import type {
@@ -82,6 +82,8 @@ export async function upsertRawOffer(input: OfferInput & { sourceId?: string | n
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error("Supabase 尚未配置，无法保存报价。");
 
+  await ensureCanonicalProducts(supabase);
+
   const sourceId = input.sourceId || slugify(input.sourceName || input.sourceUrl);
   const source = await upsertSource({
     id: sourceId,
@@ -135,6 +137,8 @@ export async function upsertRawOffers(
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error("Supabase 尚未配置，无法保存报价。");
 
+  await ensureCanonicalProducts(supabase);
+
   const rows = [];
   const collectionMethod = options.collectionMethod || "browser";
 
@@ -187,6 +191,25 @@ export async function upsertRawOffers(
   if (error) throw error;
 
   return rows.length;
+}
+
+async function ensureCanonicalProducts(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const { error } = await supabase.from("canonical_products").upsert(
+    canonicalCatalog.map((product) => ({
+      id: product.id,
+      slug: product.slug,
+      display_name: product.displayName,
+      platform: product.platform,
+      product_type: product.productType,
+      spec: product.spec,
+      summary: product.summary,
+      aliases: product.aliases,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    })),
+  );
+
+  if (error) throw error;
 }
 
 export function rawOfferInputId(offer: Pick<OfferInput, "sourceName" | "sourceStoreName" | "sourceTitle" | "url">): string {

@@ -90,7 +90,8 @@ if (args.post) {
 }
 
 function extractOffersInPage() {
-  const pricePattern = /(?:[¥￥]\s*|(?:^|\s))(\d+(?:\.\d{1,2})?)(?:\s*元)?/;
+  const pricePattern = /(?:[¥￥]\s*|(?:^|\s))(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)(?:\s*元)?/;
+  const currencyPricePattern = /[¥￥]\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
   const stockPattern = /库存[:：]?\s*(\d+)/;
   const selectors = [
     "article",
@@ -116,7 +117,7 @@ function extractOffersInPage() {
     if (!pricePattern.test(text)) continue;
 
     const priceMatch = text.match(pricePattern);
-    const price = priceMatch ? Number(priceMatch[1]) : null;
+    const price = priceMatch ? Number(priceMatch[1].replace(/,/g, "")) : null;
     if (!Number.isFinite(price)) continue;
 
     const linkNode = node.closest("a") || node.querySelector?.("a");
@@ -135,7 +136,8 @@ function extractOffersInPage() {
 
     const title = text
       .replace(/库存[:：]?\s*\d+/g, "")
-      .replace(/[¥￥]\s*\d+(?:\.\d{1,2})?/g, "")
+      .replace(currencyPricePattern, "")
+      .replace(/\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\s*元/g, "")
       .replace(/\d+(?:\.\d{1,2})?\s*元/g, "")
       .replace(/下单|购买|自动发货|人工处理/g, "")
       .trim()
