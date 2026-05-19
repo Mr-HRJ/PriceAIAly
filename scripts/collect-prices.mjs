@@ -20,6 +20,7 @@ const KAMI_HOSTS = new Set([
 const DUJIAO_HOSTS = new Set([
   "burstpro-ai.online",
   "card.kxandyou.com",
+  "kapay.shop",
   "shop.aitonse.com",
   "shop.auto-subscribe.com",
   "ultra.makelove.cloud",
@@ -692,7 +693,11 @@ function makeOffer(target, input) {
 }
 
 async function postCrawlLog(target, offers, status, message, options = {}, details = {}) {
-  const endpoint = options.endpoint || "http://localhost:3000";
+  const endpoint =
+    options.endpoint ||
+    process.env.CRON_PUBLIC_BASE_URL ||
+    env.CRON_PUBLIC_BASE_URL ||
+    "http://localhost:3000";
   const password =
     options.password ||
     process.env.ADMIN_PASSWORD ||

@@ -576,6 +576,7 @@ const KAMI_HOSTS = new Set([
 const DUJIAO_HOSTS = new Set([
   "burstpro-ai.online",
   "card.kxandyou.com",
+  "kapay.shop",
   "shop.aitonse.com",
   "shop.auto-subscribe.com",
   "ultra.makelove.cloud",
@@ -715,6 +716,7 @@ function inferSubmittedSourceName(host: string, parsedTitle: string | null, shop
   if (host === "ai666.dnxb.cc") return "T佬的gmail批发渠道";
   if (host === "pay.ldxp.cn" && shopToken) return `LDXP / ${shopToken}`;
   if (host === "pay.qxvx.cn" && shopToken) return `QXVX / ${shopToken}`;
+  if (host === "kapay.shop") return "Auto Subscribe / kapay.shop";
   if (host === "shop.auto-subscribe.com") return "Auto Subscribe";
   if (host === "aifk.opensora.de") return "AUTO FK";
   if (host === "aisou.pro") return "Aisou智充";

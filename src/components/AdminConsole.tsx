@@ -2356,6 +2356,7 @@ const knownAutoCollectorHosts = new Set([
   "card.kxandyou.com",
   "faka.redeemgpt.com",
   "feifei.shop",
+  "kapay.shop",
   "makerich.club",
   "pay.ldxp.cn",
   "pay.qxvx.cn",
@@ -2377,7 +2378,7 @@ function inferCollectorKindFromSource(source: Source): CollectorKind | null {
   const host = sourceHost(source);
   const text = `${source.id} ${source.name} ${source.entryUrl} ${source.baseUrl || ""}`.toLowerCase();
   if (["ai666.dnxb.cc", "aisou.pro", "caowo.store", "faka.redeemgpt.com", "feifei.shop", "talkai.cyou", "yh-mo.xyz", "zzshu.com"].includes(host)) return "kami";
-  if (["burstpro-ai.online", "card.kxandyou.com", "shop.aitonse.com", "shop.auto-subscribe.com", "ultra.makelove.cloud"].includes(host)) return "dujiao";
+  if (["burstpro-ai.online", "card.kxandyou.com", "kapay.shop", "shop.aitonse.com", "shop.auto-subscribe.com", "ultra.makelove.cloud"].includes(host)) return "dujiao";
   if (host === "pay.qxvx.cn" || host === "pay.ldxp.cn") return "shopApi";
   if (host === "upgrade.xiaoheiwan.com") return "xiaoheiwan";
   if (host === "aifk.opensora.de") return "opensoraHtml";
