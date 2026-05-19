@@ -111,6 +111,7 @@ export function mapSource(row: Record<string, unknown>): Source {
     baseUrl: row.base_url ? String(row.base_url) : null,
     entryUrl: String(row.entry_url || row.base_url || ""),
     collectionMethod: String(row.collection_method || "manual") as Source["collectionMethod"],
+    collectorKind: normalizeCollectorKind(row.collector_kind),
     enabled: Boolean(row.enabled),
     notes: row.notes ? String(row.notes) : null,
     healthStatus: row.health_status ? String(row.health_status) as Source["healthStatus"] : null,
@@ -123,6 +124,24 @@ export function mapSource(row: Record<string, unknown>): Source {
     lastError: row.last_error ? String(row.last_error) : null,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   };
+}
+
+function normalizeCollectorKind(value: unknown): Source["collectorKind"] {
+  if (
+    value === "auto" ||
+    value === "kami" ||
+    value === "dujiao" ||
+    value === "shopApi" ||
+    value === "xiaoheiwan" ||
+    value === "opensoraHtml" ||
+    value === "makerichHtml" ||
+    value === "beibeiHtml" ||
+    value === "browser" ||
+    value === "unsupported"
+  ) {
+    return value;
+  }
+  return null;
 }
 
 export function mapRawOffer(row: Record<string, unknown>): RawOffer {

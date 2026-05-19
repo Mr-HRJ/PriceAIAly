@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       name: payload.sourceName,
       entryUrl: payload.sourceUrl,
       collectionMethod: payload.mode,
+      collectorKind: collectorKindFromDetails(payload.details),
       notes: "由采集日志自动维护。",
     });
     const offers = payload.offers.map((offer) => ({
@@ -91,4 +92,23 @@ export async function POST(request: Request) {
       { status: error instanceof z.ZodError ? 400 : 500 },
     );
   }
+}
+
+function collectorKindFromDetails(details: Record<string, unknown> | undefined) {
+  const value = details?.collector;
+  if (
+    value === "auto" ||
+    value === "kami" ||
+    value === "dujiao" ||
+    value === "shopApi" ||
+    value === "xiaoheiwan" ||
+    value === "opensoraHtml" ||
+    value === "makerichHtml" ||
+    value === "beibeiHtml" ||
+    value === "browser" ||
+    value === "unsupported"
+  ) {
+    return value;
+  }
+  return null;
 }

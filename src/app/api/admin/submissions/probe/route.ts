@@ -39,6 +39,7 @@ export async function POST(request: Request) {
         undefined,
       sourceUrl: submission.url,
       baseUrl: stringMeta(meta, "base_url") || undefined,
+      collectorKind: stringMeta(meta, "suggested_collector_kind") || undefined,
       rawOffers: [{ url: submission.url }],
       limit: 12,
     });

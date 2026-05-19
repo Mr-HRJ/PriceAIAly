@@ -9,6 +9,7 @@ import { getSupabaseServerClient } from "./supabase";
 import type {
   ChannelSubmission,
   CollectionMethod,
+  CollectorKind,
   OfferInput,
   RawOffer,
   Source,
@@ -46,6 +47,7 @@ export async function upsertSource(input: {
   entryUrl: string;
   baseUrl?: string | null;
   collectionMethod?: CollectionMethod;
+  collectorKind?: CollectorKind | null;
   enabled?: boolean;
   notes?: string | null;
 }): Promise<Source> {
@@ -58,12 +60,13 @@ export async function upsertSource(input: {
     baseUrl: input.baseUrl || deriveBaseUrl(input.entryUrl),
     entryUrl: input.entryUrl,
     collectionMethod: input.collectionMethod || "manual",
+    collectorKind: input.collectorKind ?? null,
     enabled: input.enabled ?? true,
     notes: input.notes || null,
     updatedAt: new Date().toISOString(),
   };
 
-  const { error } = await supabase.from("sources").upsert({
+  const row: Record<string, unknown> = {
     id: source.id,
     name: source.name,
     base_url: source.baseUrl,
@@ -72,7 +75,10 @@ export async function upsertSource(input: {
     enabled: source.enabled,
     notes: source.notes,
     updated_at: source.updatedAt,
-  });
+  };
+  if (input.collectorKind !== undefined) row.collector_kind = source.collectorKind;
+
+  const { error } = await supabase.from("sources").upsert(row);
 
   if (error) throw error;
   return source;
@@ -82,6 +88,7 @@ export async function updateSourceState(input: {
   id: string;
   enabled?: boolean;
   collectionMethod?: CollectionMethod;
+  collectorKind?: CollectorKind | null;
   notes?: string | null;
 }): Promise<Source> {
   const supabase = getSupabaseServerClient();
@@ -92,6 +99,7 @@ export async function updateSourceState(input: {
   };
   if (typeof input.enabled === "boolean") row.enabled = input.enabled;
   if (input.collectionMethod) row.collection_method = input.collectionMethod;
+  if (input.collectorKind !== undefined) row.collector_kind = input.collectorKind || null;
   if (input.notes !== undefined) row.notes = input.notes;
 
   const { data, error } = await supabase
@@ -494,6 +502,7 @@ function mapSourceRow(row: Record<string, unknown>): Source {
     baseUrl: row.base_url ? String(row.base_url) : null,
     entryUrl: String(row.entry_url || row.base_url || ""),
     collectionMethod: String(row.collection_method || "http") as CollectionMethod,
+    collectorKind: normalizeCollectorKind(row.collector_kind),
     enabled: Boolean(row.enabled),
     notes: row.notes ? String(row.notes) : null,
     healthStatus: row.health_status ? String(row.health_status) as Source["healthStatus"] : null,
@@ -679,7 +688,10 @@ function analyzeSubmissionUrl(parsed: URL, parsedTitle: string | null): Record<s
     suggested_source_id: inferSubmittedSourceId(host, suggestedName, shopToken),
     suggested_collection_method: collectionMethod,
     suggested_collector_kind: collectorKind,
-    support_status: collectorKind === "browser" ? "needs_browser_probe" : "supported",
+    support_status:
+      collectorKind === "browser"
+        ? "needs_browser_probe"
+        : "supported",
     support_reason:
       collectorKind === "browser"
         ? "暂未识别到公开接口，建议先试采集；失败后加入采集器待办。"
@@ -731,6 +743,38 @@ function getShopToken(pathname: string): string | null {
 
 function normalizeHostname(value: string): string {
   return value.toLowerCase().replace(/^www\./, "");
+}
+
+function normalizeCollectorKind(value: unknown): CollectorKind | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (
+    normalized === "auto" ||
+    normalized === "kami" ||
+    normalized === "dujiao" ||
+    normalized === "shopApi" ||
+    normalized === "xiaoheiwan" ||
+    normalized === "opensoraHtml" ||
+    normalized === "makerichHtml" ||
+    normalized === "beibeiHtml" ||
+    normalized === "browser" ||
+    normalized === "unsupported"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function isRuntimeCollectionIssue(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("验证") ||
+    text.includes("风控") ||
+    text.includes("captcha") ||
+    text.includes("challenge") ||
+    text.includes("waf") ||
+    text.includes("安全")
+  );
 }
 
 export async function createSubmission(input: {
@@ -857,15 +901,29 @@ export async function recordSubmissionProbeResult(
   const submission = mapSubmissionRow(row);
   const checkedAt = new Date().toISOString();
   const success = result.status === "success" && Number(result.offerCount || 0) > 0;
+  const collectorKind = normalizeCollectorKind(result.kind) || normalizeCollectorKind(submission.parsedMeta.suggested_collector_kind);
+  const runtimeIssue = !success && isRuntimeCollectionIssue(result.message || "");
+  const knownCollector = collectorKind && collectorKind !== "browser" && collectorKind !== "unsupported";
+  const supportStatus = success
+    ? "probe_success"
+    : runtimeIssue && knownCollector
+      ? "known_collector_probe_failed"
+      : knownCollector
+        ? "known_collector_probe_failed"
+        : "needs_collector";
+  const supportReason = success
+    ? `试采集成功，识别到 ${Number(result.offerCount || 0)} 条报价。`
+    : runtimeIssue && knownCollector
+      ? `已识别 ${collectorKind} 采集器，但本次运行触发验证或风控；可先确认解析器入库，后续云端和本地采集脚本都会继续尝试。`
+      : result.message || "当前采集器暂不支持，需要加入采集器待办后补解析脚本。";
   const nextMeta = {
     ...submission.parsedMeta,
     probe_result: result,
     probe_checked_at: checkedAt,
-    review_stage: success ? "ready_to_approve" : "needs_collector_review",
-    support_status: success ? "probe_success" : "needs_collector",
-    support_reason: success
-      ? `试采集成功，识别到 ${Number(result.offerCount || 0)} 条报价。`
-      : result.message || "当前采集器暂不支持，需要加入采集器待办后补解析脚本。",
+    suggested_collector_kind: collectorKind || submission.parsedMeta.suggested_collector_kind,
+    review_stage: success ? "ready_to_approve" : knownCollector ? "known_collector_probe_failed" : "needs_collector_review",
+    support_status: supportStatus,
+    support_reason: supportReason,
   };
 
   const { data: updated, error: updateError } = await supabase
@@ -924,7 +982,11 @@ export async function markSubmissionCollectorTodo(id: string, note?: string | nu
 
 export async function approveSubmission(
   id: string,
-  overrides: { name?: string | null; collectionMethod?: CollectionMethod } = {},
+  overrides: {
+    name?: string | null;
+    collectionMethod?: CollectionMethod;
+    collectorKind?: CollectorKind | null;
+  } = {},
 ): Promise<{ submission: ChannelSubmission; source: Source; importedOfferCount: number; matchedExistingSource: boolean }> {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error("Supabase 尚未配置。");
@@ -941,6 +1003,8 @@ export async function approveSubmission(
   const submission = mapSubmissionRow(row);
   const baseUrl = deriveBaseUrl(submission.url);
   const suggestedMethod = getSuggestedCollectionMethod(submission.parsedMeta);
+  const suggestedCollectorKind = getSuggestedCollectorKind(submission.parsedMeta);
+  const selectedCollectorKind = overrides.collectorKind || suggestedCollectorKind;
   const suggestedId = getSuggestedSourceId(submission.parsedMeta);
   const existingSource = suggestedId ? await getSourceById(suggestedId) : null;
   const fallbackName =
@@ -950,7 +1014,7 @@ export async function approveSubmission(
     submission.parsedTitle ||
     (baseUrl ? new URL(baseUrl).host : submission.url);
 
-  const source =
+  let source =
     existingSource ||
     await upsertSource({
       id: suggestedId,
@@ -958,13 +1022,26 @@ export async function approveSubmission(
       entryUrl: submission.url,
       baseUrl,
       collectionMethod: overrides.collectionMethod || suggestedMethod || "http",
+      collectorKind: selectedCollectorKind,
       enabled: true,
       notes: submission.notes ? `用户提交：${submission.notes}` : "由用户提交渠道入口审核通过。",
     });
 
+  if (existingSource && selectedCollectorKind) {
+    source = await updateSourceState({
+      id: existingSource.id,
+      collectorKind: selectedCollectorKind || existingSource.collectorKind || null,
+    });
+  }
+
   const importedOffers = getProbeOffersForImport(submission.parsedMeta, source, submission.url);
-  if (!existingSource && !importedOffers.length) {
-    throw new Error("请先试采集成功；当前不支持自动采集的渠道请加入采集器待办。");
+  const hasRunnableCollector =
+    selectedCollectorKind &&
+    selectedCollectorKind !== "auto" &&
+    selectedCollectorKind !== "browser" &&
+    selectedCollectorKind !== "unsupported";
+  if (!existingSource && !importedOffers.length && !hasRunnableCollector) {
+    throw new Error("请先试采集成功；或手动指定一个已支持采集器后再通过。");
   }
 
   const importedOfferCount = importedOffers.length
@@ -988,6 +1065,7 @@ export async function approveSubmission(
         review_action: "submission_approve",
         submission_id: submission.id,
         matched_existing_source: Boolean(existingSource),
+        collector: selectedCollectorKind || null,
       },
     });
     if (logError) throw logError;
@@ -1000,6 +1078,7 @@ export async function approveSubmission(
     approved_source_id: source.id,
     approved_offer_count: importedOfferCount,
     matched_existing_source: Boolean(existingSource),
+    approved_collector_kind: selectedCollectorKind || null,
   };
   const { data: updated, error: updateError } = await supabase
     .from("channel_submissions")
@@ -1049,7 +1128,7 @@ async function getSourceById(id: string): Promise<Source | null> {
 
   const { data, error } = await supabase
     .from("sources")
-    .select("id,name,base_url,entry_url,collection_method,enabled,notes,updated_at")
+    .select("id,name,base_url,entry_url,collection_method,collector_kind,enabled,notes,updated_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -1112,6 +1191,10 @@ function getSuggestedCollectionMethod(meta: Record<string, unknown>): Collection
   return value === "aibijia_json" || value === "browser" || value === "http" || value === "manual"
     ? value
     : null;
+}
+
+function getSuggestedCollectorKind(meta: Record<string, unknown>): CollectorKind | null {
+  return normalizeCollectorKind(meta.suggested_collector_kind);
 }
 
 function stringValue(value: unknown): string | null {

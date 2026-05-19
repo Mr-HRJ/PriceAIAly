@@ -13,12 +13,25 @@ export type CollectionMethod =
   | "http"
   | "manual";
 
+export type CollectorKind =
+  | "auto"
+  | "kami"
+  | "dujiao"
+  | "shopApi"
+  | "xiaoheiwan"
+  | "opensoraHtml"
+  | "makerichHtml"
+  | "beibeiHtml"
+  | "browser"
+  | "unsupported";
+
 export type Source = {
   id: string;
   name: string;
   baseUrl?: string | null;
   entryUrl: string;
   collectionMethod: CollectionMethod;
+  collectorKind?: CollectorKind | null;
   enabled: boolean;
   notes?: string | null;
   healthStatus?: "unknown" | "healthy" | "retrying" | "failing" | "partial" | null;

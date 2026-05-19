@@ -6,6 +6,7 @@ const schema = z.object({
   id: z.string().min(1),
   name: z.string().trim().max(200).optional().nullable(),
   collectionMethod: z.enum(["aibijia_json", "browser", "http", "manual"]).optional(),
+  collectorKind: z.enum(["auto", "kami", "dujiao", "shopApi", "xiaoheiwan", "opensoraHtml", "makerichHtml", "beibeiHtml", "browser", "unsupported"]).nullable().optional(),
 });
 
 export async function POST(request: Request) {
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     const result = await approveSubmission(payload.id, {
       name: payload.name ?? null,
       collectionMethod: payload.collectionMethod,
+      collectorKind: payload.collectorKind,
     });
     return Response.json({ ok: true, ...result });
   } catch (error) {

@@ -68,6 +68,7 @@ npm run import:aibijia -- --password your-admin-password
 npm run collect:prices -- --list
 npm run collect:prices -- --all --post
 npm run collect:prices -- --source aisou-pro --post
+npm run collect:prices -- --source ldxp --post
 ```
 
 常用参数：
@@ -78,7 +79,7 @@ npm run collect:prices -- --source aisou-pro --post
 - `--post`：把采集结果写入本地后台和 Supabase。
 - `--endpoint`：默认 `http://localhost:3000`。
 
-部署后由 GitHub Actions 定时执行采集脚本，Vercel 只负责接收入库结果。这样可以避免把全量采集压进一次 Vercel 函数调用导致超时。
+每个来源会保存 `collector_kind`。后台审核时命中已有解析器后，可直接确认入库；下一次采集脚本会自动读取该渠道。云端和本地脚本可以同时跑同一套渠道，谁采集成功谁回写结果。部署后由 GitHub Actions 或云服务器定时执行采集脚本，Vercel 只负责接收入库结果。这样可以避免把全量采集压进一次 Vercel 函数调用导致超时。
 
 ```bash
 GET /api/cron/collect-prices

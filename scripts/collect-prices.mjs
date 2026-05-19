@@ -118,6 +118,7 @@ export async function probeSource(options = {}) {
     base_url: options.baseUrl || deriveBaseUrl(sourceUrl),
     entry_url: sourceUrl,
     collection_method: "http",
+    collector_kind: options.collectorKind || options.kind || null,
   };
   const target = buildTarget(source, Array.isArray(options.rawOffers) ? options.rawOffers : []);
   const startedAt = Date.now();
@@ -598,15 +599,15 @@ async function discoverShopTokens(target) {
 
 async function loadTargets() {
   const builtinSources = [
-    { id: "ai666-gmail-wholesale", name: "T佬的gmail批发渠道", entry_url: "https://ai666.dnxb.cc/", collection_method: "http" },
-    { id: "aisou-pro", name: "Aisou智充", entry_url: "https://aisou.pro/", collection_method: "http" },
-    { id: "caowo-store", name: "GPT专卖-cw", entry_url: "https://caowo.store/", collection_method: "http" },
-    { id: "auto-subscribe", name: "Auto Subscribe", entry_url: "https://shop.auto-subscribe.com/", collection_method: "http" },
-    { id: "opensora-aifk", name: "AUTO FK", entry_url: "https://aifk.opensora.de/", collection_method: "http" },
-    { id: "makerich-club", name: "AI创富俱乐部", entry_url: "https://makerich.club/", collection_method: "http" },
-    { id: "ldxp-jinyao", name: "LDXP 金钥", entry_url: "https://pay.ldxp.cn/shop/jinyao", collection_method: "http" },
-    { id: "ldxp-pixelshop", name: "LDXP Pixelshop", entry_url: "https://pay.ldxp.cn/shop/pixelshop", collection_method: "http" },
-    { id: "qxvx-pay", name: "QXVX Pay", entry_url: "https://pay.qxvx.cn/", collection_method: "http" },
+    { id: "ai666-gmail-wholesale", name: "T佬的gmail批发渠道", entry_url: "https://ai666.dnxb.cc/", collection_method: "http", collector_kind: "kami" },
+    { id: "aisou-pro", name: "Aisou智充", entry_url: "https://aisou.pro/", collection_method: "http", collector_kind: "kami" },
+    { id: "caowo-store", name: "GPT专卖-cw", entry_url: "https://caowo.store/", collection_method: "http", collector_kind: "kami" },
+    { id: "auto-subscribe", name: "Auto Subscribe", entry_url: "https://shop.auto-subscribe.com/", collection_method: "http", collector_kind: "dujiao" },
+    { id: "opensora-aifk", name: "AUTO FK", entry_url: "https://aifk.opensora.de/", collection_method: "http", collector_kind: "opensoraHtml" },
+    { id: "makerich-club", name: "AI创富俱乐部", entry_url: "https://makerich.club/", collection_method: "http", collector_kind: "makerichHtml" },
+    { id: "ldxp-jinyao", name: "LDXP 金钥", entry_url: "https://pay.ldxp.cn/shop/jinyao", collection_method: "http", collector_kind: "shopApi" },
+    { id: "ldxp-pixelshop", name: "LDXP Pixelshop", entry_url: "https://pay.ldxp.cn/shop/pixelshop", collection_method: "http", collector_kind: "shopApi" },
+    { id: "qxvx-pay", name: "QXVX Pay", entry_url: "https://pay.qxvx.cn/", collection_method: "http", collector_kind: "shopApi" },
   ];
   let sources = builtinSources;
   let rawOffers = [];
@@ -614,7 +615,7 @@ async function loadTargets() {
   const supabase = getSupabaseClient();
   if (supabase) {
     const [sourcesResult, offersResult] = await Promise.all([
-      supabase.from("sources").select("id,name,base_url,entry_url,collection_method,enabled,notes").eq("enabled", true),
+      supabase.from("sources").select("id,name,base_url,entry_url,collection_method,collector_kind,enabled,notes").eq("enabled", true),
       supabase.from("raw_offers").select("source_id,source_name,source_store_name,source_title,url").limit(5000),
     ]);
 
@@ -650,16 +651,10 @@ function buildTarget(source, rawOffers) {
   const baseUrl = source.base_url || deriveBaseUrl(sourceUrl);
   const host = normalizeHostname(baseUrl || sourceUrl);
   const text = `${source.id} ${source.name} ${sourceUrl}`.toLowerCase();
-  let kind = null;
-
-  if (KAMI_HOSTS.has(host)) kind = "kami";
-  else if (DUJIAO_HOSTS.has(host)) kind = "dujiao";
-  else if (host === "pay.qxvx.cn" || host === "pay.ldxp.cn") kind = "shopApi";
-  else if (host === "upgrade.xiaoheiwan.com") kind = "xiaoheiwan";
-  else if (host === "aifk.opensora.de") kind = "opensoraHtml";
-  else if (host === "makerich.club") kind = "makerichHtml";
-  else if (host === "bei-bei.shop") kind = "beibeiHtml";
-  else if (text.includes("burstpro")) kind = "dujiao";
+  const configuredKind = normalizeCollectorKind(source.collector_kind);
+  const inferredKind = inferCollectorKind(host, text);
+  const kind = configuredKind && configuredKind !== "auto" ? configuredKind : inferredKind;
+  const runnableKind = kind === "browser" || kind === "unsupported" ? null : kind;
 
   return {
     sourceId: source.id,
@@ -667,7 +662,8 @@ function buildTarget(source, rawOffers) {
     sourceUrl,
     sourceStoreName: source.name,
     baseUrl,
-    kind,
+    kind: runnableKind,
+    configuredKind: configuredKind || null,
     rawOffers,
   };
 }
@@ -733,15 +729,47 @@ async function postCrawlLog(target, offers, status, message, options = {}, detai
 
 function selectTargets(targets, options) {
   const selected = options.source || options.id || options.name;
-  if (!selected && !options.all) return targets.filter((target) => target.kind);
-  if (options.all) return targets.filter((target) => target.kind);
+  const runnable = (target) => target.kind;
+  if (!selected && !options.all) return targets.filter(runnable);
+  if (options.all) return targets.filter(runnable);
 
   const query = String(selected).toLowerCase();
   return targets.filter((target) =>
-    [target.sourceId, target.sourceName, target.sourceUrl, target.kind]
+    runnable(target) &&
+    [target.sourceId, target.sourceName, target.sourceUrl, target.kind, target.configuredKind]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(query)),
   );
+}
+
+function inferCollectorKind(host, text = "") {
+  if (KAMI_HOSTS.has(host)) return "kami";
+  if (DUJIAO_HOSTS.has(host)) return "dujiao";
+  if (host === "pay.qxvx.cn" || host === "pay.ldxp.cn") return "shopApi";
+  if (host === "upgrade.xiaoheiwan.com") return "xiaoheiwan";
+  if (host === "aifk.opensora.de") return "opensoraHtml";
+  if (host === "makerich.club") return "makerichHtml";
+  if (host === "bei-bei.shop") return "beibeiHtml";
+  if (text.includes("burstpro")) return "dujiao";
+  return null;
+}
+
+function normalizeCollectorKind(value) {
+  const text = String(value || "").trim();
+  return [
+    "auto",
+    "kami",
+    "dujiao",
+    "shopApi",
+    "xiaoheiwan",
+    "opensoraHtml",
+    "makerichHtml",
+    "beibeiHtml",
+    "browser",
+    "unsupported",
+  ].includes(text)
+    ? text
+    : null;
 }
 
 function maxAttemptsFor(options = {}) {
@@ -764,6 +792,7 @@ function printTargetList(targets) {
       id: target.sourceId,
       name: target.sourceName,
       kind: target.kind || "unsupported",
+      configured: target.configuredKind || "auto",
       url: target.sourceUrl,
       seedItems: target.rawOffers.length,
     })),

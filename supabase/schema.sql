@@ -18,6 +18,7 @@ create table if not exists sources (
   base_url text,
   entry_url text not null,
   collection_method text not null default 'manual',
+  collector_kind text,
   enabled boolean not null default true,
   notes text,
   health_status text not null default 'unknown',
@@ -34,6 +35,7 @@ alter table sources add column if not exists last_checked_at timestamptz;
 alter table sources add column if not exists last_success_at timestamptz;
 alter table sources add column if not exists consecutive_failures integer not null default 0;
 alter table sources add column if not exists last_error text;
+alter table sources add column if not exists collector_kind text;
 
 create table if not exists raw_offers (
   id text primary key,
@@ -144,6 +146,7 @@ create index if not exists raw_offers_expires_at_idx on raw_offers(expires_at);
 create index if not exists raw_offers_hidden_idx on raw_offers(hidden);
 create index if not exists sources_health_status_idx on sources(health_status);
 create index if not exists sources_last_checked_at_idx on sources(last_checked_at desc);
+create index if not exists sources_collector_kind_idx on sources(collector_kind);
 create index if not exists crawl_runs_started_at_idx on crawl_runs(started_at desc);
 
 create or replace function set_updated_at()

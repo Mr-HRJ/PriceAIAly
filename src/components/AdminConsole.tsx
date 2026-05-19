@@ -30,6 +30,7 @@ import type {
   AdminSummary,
   ChannelSubmission,
   CollectionMethod,
+  CollectorKind,
   CrawlRun,
   OfferStatus,
   Source,
@@ -79,6 +80,19 @@ type RowFeedback = {
 const statusOptions: Array<[OfferStatus, string]> = [
   ["in_stock", "有货"],
   ["out_of_stock", "缺货"],
+];
+
+const collectorKindOptions: Array<[CollectorKind, string]> = [
+  ["auto", "自动识别"],
+  ["kami", "Kami"],
+  ["dujiao", "独角数卡"],
+  ["shopApi", "ShopApi"],
+  ["xiaoheiwan", "小黑万"],
+  ["opensoraHtml", "OpenSora HTML"],
+  ["makerichHtml", "Makerich HTML"],
+  ["beibeiHtml", "贝贝 HTML"],
+  ["browser", "本机浏览器"],
+  ["unsupported", "暂不支持"],
 ];
 
 /* ─── Main Component ─── */
@@ -146,12 +160,14 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
     );
   }, [collectorTodoSubmissions, searchQuery]);
 
-  const probeSuccessIds = useMemo(() => {
+  const approvableSubmissionIds = useMemo(() => {
     const ids = new Set<string>();
     for (const s of filteredReview) {
+      const meta = s.parsedMeta || {};
       const probe = probeResults[s.id] || probeResultFromMeta(s.parsedMeta || {});
       const existing = sourceById.get(suggestedSourceIdForSubmission(s) || "");
-      if (existing || (probe?.status === "success" && probe.offerCount > 0)) {
+      const suggestedCollector = collectorKindMeta(meta, "suggested_collector_kind");
+      if (existing || (probe?.status === "success" && probe.offerCount > 0) || isRunnableCollector(suggestedCollector)) {
         ids.add(s.id);
       }
     }
@@ -366,7 +382,10 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
 
   async function batchCollectSelectedSources() {
     const targets = selectedSources.filter(
-      (source) => source.enabled && resolvedCollectionMethod(source) === "http" && !sourceNeedsCollector(source),
+      (source) =>
+        source.enabled &&
+        resolvedCollectionMethod(source) === "http" &&
+        !sourceNeedsCollector(source),
     );
     if (!targets.length) {
       setGlobalMessage({ type: "error", text: "没有可自动重采的已选渠道。" });
@@ -542,6 +561,7 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
       entryUrl: String(form.get("entryUrl") || ""),
       baseUrl: String(form.get("baseUrl") || "") || null,
       collectionMethod: String(form.get("collectionMethod") || "manual") as CollectionMethod,
+      collectorKind: String(form.get("collectorKind") || "auto") as CollectorKind,
       enabled: true,
       notes: String(form.get("notes") || "") || null,
     });
@@ -617,13 +637,14 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
 
   async function approveSubmission(
     submission: ChannelSubmission,
-    overrides: { name?: string; collectionMethod?: CollectionMethod },
+    overrides: { name?: string; collectionMethod?: CollectionMethod; collectorKind?: CollectorKind },
   ) {
     setLoadingAction(`approve-${submission.id}`);
     const result = await request("/api/admin/submissions/approve", password, {
       id: submission.id,
       name: overrides.name?.trim() || null,
       collectionMethod: overrides.collectionMethod || "manual",
+      collectorKind: overrides.collectorKind || "auto",
     });
     setLoadingAction(null);
     if (result.ok) {
@@ -634,7 +655,9 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
         "success",
         merged
           ? `已合并到已有源：${result.source?.name || submission.url}${imported ? `，入库 ${imported} 条报价` : ""}`
-          : `已通过并入库：${result.source?.name || submission.url}，入库 ${imported} 条报价`,
+          : imported
+            ? `已通过并入库：${result.source?.name || submission.url}，入库 ${imported} 条报价`
+            : `已通过并加入渠道：${result.source?.name || submission.url}，等待下次采集`,
       );
       setTimeout(() => {
         setSubmissions((prev) => prev.filter((item) => item.id !== submission.id));
@@ -712,19 +735,21 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
   }
 
   async function batchApprove() {
-    const items = filteredReview.filter((s) => selectedIds.has(s.id) && probeSuccessIds.has(s.id));
+    const items = filteredReview.filter((s) => selectedIds.has(s.id) && approvableSubmissionIds.has(s.id));
     if (!items.length) return;
     setLoadingAction("batch-approve");
     let successCount = 0;
     for (const item of items) {
       const meta = item.parsedMeta || {};
       const suggestedMethod = collectionMethodMeta(meta, "suggested_collection_method");
+      const suggestedCollector = collectorKindMeta(meta, "suggested_collector_kind") || "auto";
       const probe = probeResults[item.id] || probeResultFromMeta(meta);
       const method: CollectionMethod = (probe?.status === "success" ? "http" : suggestedMethod) || "http";
       const result = await request("/api/admin/submissions/approve", password, {
         id: item.id,
         name: item.name || stringMeta(meta, "suggested_source_name") || item.parsedTitle || null,
         collectionMethod: method,
+        collectorKind: suggestedCollector,
       });
       if (result.ok) {
         successCount++;
@@ -752,10 +777,10 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
   };
 
   const selectAllApprovable = () => {
-    if (selectedIds.size === probeSuccessIds.size && [...probeSuccessIds].every((id) => selectedIds.has(id))) {
+    if (selectedIds.size === approvableSubmissionIds.size && [...approvableSubmissionIds].every((id) => selectedIds.has(id))) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(probeSuccessIds));
+      setSelectedIds(new Set(approvableSubmissionIds));
     }
   };
 
@@ -895,14 +920,14 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
                       className="h-9 w-full rounded-lg border border-[#adb3b4]/30 bg-white pl-9 pr-3 text-sm outline-none transition-colors focus:border-[#2d3435]"
                     />
                   </div>
-                  {probeSuccessIds.size > 0 && (
+                  {approvableSubmissionIds.size > 0 && (
                     <button
                       type="button"
                       onClick={selectAllApprovable}
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#adb3b4]/30 bg-white px-3 text-xs font-medium text-[#2d3435] transition-colors hover:bg-[#f2f4f4]"
                     >
                       <Check size={14} />
-                      {selectedIds.size > 0 ? "取消全选" : `全选可通过 (${probeSuccessIds.size})`}
+                      {selectedIds.size > 0 ? "取消全选" : `全选可通过 (${approvableSubmissionIds.size})`}
                     </button>
                   )}
                   {selectedIds.size > 0 && (
@@ -939,7 +964,7 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
                         expanded={expandedId === submission.id}
                         focused={focusedIndex === index}
                         selected={selectedIds.has(submission.id)}
-                        selectable={probeSuccessIds.has(submission.id)}
+                        selectable={approvableSubmissionIds.has(submission.id)}
                         feedback={rowFeedback?.id === submission.id ? rowFeedback : null}
                         onToggleExpand={() => setExpandedId((prev) => (prev === submission.id ? null : submission.id))}
                         onToggleSelect={() => toggleSelect(submission.id)}
@@ -1265,9 +1290,17 @@ export function AdminConsole({ data }: { data: AdminSummary }) {
                     <label className="block">
                       <span className="mb-1 block text-xs font-medium text-[#5a6061]">采集方式</span>
                       <select name="collectionMethod" className="h-10 w-full rounded-lg border border-[#adb3b4]/40 bg-white px-3 text-sm outline-none transition-colors focus:border-[#2d3435]">
-                        <option value="browser">浏览器采集</option>
                         <option value="http">自动接口采集</option>
+                        <option value="browser">浏览器采集</option>
                         <option value="aibijia_json">Aibijia 数据</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-[#5a6061]">解析器</span>
+                      <select name="collectorKind" className="h-10 w-full rounded-lg border border-[#adb3b4]/40 bg-white px-3 text-sm outline-none transition-colors focus:border-[#2d3435]">
+                        {collectorKindOptions.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
                       </select>
                     </label>
                     <TextArea name="notes" label="备注" placeholder="采集限制、WAF、登录要求等" required={false} />
@@ -1342,7 +1375,7 @@ function SubmissionCard({
   feedback: RowFeedback | null;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
-  onApprove: (submission: ChannelSubmission, overrides: { name?: string; collectionMethod?: CollectionMethod }) => void;
+  onApprove: (submission: ChannelSubmission, overrides: { name?: string; collectionMethod?: CollectionMethod; collectorKind?: CollectorKind }) => void;
   onProbe: (submission: ChannelSubmission) => void;
   onTodo: (submission: ChannelSubmission, note: string) => void;
   onReject: (submission: ChannelSubmission, note: string) => void;
@@ -1354,22 +1387,27 @@ function SubmissionCard({
   const suggestedName = stringMeta(meta, "suggested_source_name");
   const suggestedSourceId = stringMeta(meta, "suggested_source_id");
   const suggestedMethod = collectionMethodMeta(meta, "suggested_collection_method");
-  const suggestedCollector = stringMeta(meta, "suggested_collector_kind");
+  const suggestedCollector = collectorKindMeta(meta, "suggested_collector_kind");
   const supportReason = stringMeta(meta, "support_reason");
   const parseError = typeof meta.parse_error === "string" ? meta.parse_error : null;
   const currentProbe = probeResult || probeResultFromMeta(meta);
   const hasSuccessfulProbe = currentProbe?.status === "success" && currentProbe.offerCount > 0;
-  const canApprove = Boolean(existingSource || hasSuccessfulProbe);
+  const hasKnownCollector = isRunnableCollector(suggestedCollector);
+  const canApprove = Boolean(existingSource || hasSuccessfulProbe || hasKnownCollector);
 
   const [mode, setMode] = useState<"idle" | "approve" | "todo" | "reject">("idle");
   const [name, setName] = useState(submission.name || suggestedName || submission.parsedTitle || "");
   const [collectionMethod, setCollectionMethod] = useState<CollectionMethod>(suggestedMethod || "http");
+  const [collectorKind, setCollectorKind] = useState<CollectorKind>(suggestedCollector || "auto");
   const [collectorNote, setCollectorNote] = useState(
     stringMeta(meta, "collector_todo_reason") || stringMeta(meta, "support_reason") || "",
   );
   const [reviewerNote, setReviewerNote] = useState("");
 
-  const recommendedMethod: CollectionMethod = hasSuccessfulProbe ? "http" : suggestedMethod || collectionMethod || "http";
+  const recommendedMethod: CollectionMethod = hasSuccessfulProbe || isRunnableCollector(collectorKind) ? "http" : suggestedMethod || collectionMethod || "http";
+  const recommendedCollector: CollectorKind = hasSuccessfulProbe
+    ? collectorKindMeta({ value: currentProbe?.kind || "" }, "value") || collectorKind || "auto"
+    : collectorKind || "auto";
   const approveLoading = loadingAction === `approve-${submission.id}`;
   const probeLoading = loadingAction === `probe-${submission.id}`;
   const todoLoading = loadingAction === `todo-${submission.id}`;
@@ -1458,7 +1496,7 @@ function SubmissionCard({
               <button
                 type="button"
                 disabled={approveLoading}
-                onClick={(e) => { e.stopPropagation(); onApprove(submission, { name, collectionMethod: recommendedMethod }); }}
+                onClick={(e) => { e.stopPropagation(); onApprove(submission, { name, collectionMethod: recommendedMethod, collectorKind: recommendedCollector }); }}
                 className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#2f7a4b] px-3 text-xs font-medium text-white transition-colors hover:bg-[#256a3d] disabled:opacity-60"
               >
                 {approveLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
@@ -1498,7 +1536,7 @@ function SubmissionCard({
 
           <div className="mt-2 flex flex-wrap gap-1.5">
             {suggestedMethod && <Badge tone="info">建议: {collectionMethodLabel(suggestedMethod)}</Badge>}
-            {suggestedCollector && <Badge tone="info">采集器: {suggestedCollector}</Badge>}
+            {suggestedCollector && <Badge tone="info">采集器: {collectorKindLabel(suggestedCollector)}</Badge>}
             {submission.contact && <Badge tone="info">联系: {submission.contact}</Badge>}
           </div>
 
@@ -1506,6 +1544,7 @@ function SubmissionCard({
             <p><span className="font-medium text-[#2d3435]">建议渠道名：</span>{suggestedName || submission.name || domain || "未识别"}</p>
             <p><span className="font-medium text-[#2d3435]">建议来源 ID：</span>{suggestedSourceId || "自动生成"}</p>
             <p><span className="font-medium text-[#2d3435]">建议采集方式：</span>{collectionMethodLabel(suggestedMethod || "browser")}</p>
+            <p><span className="font-medium text-[#2d3435]">建议解析器：</span>{collectorKindLabel(suggestedCollector || "auto")}</p>
             <p><span className="font-medium text-[#2d3435]">初步判断：</span>{supportReason || "已完成基础链接解析。"}</p>
             {existingSource && <p><span className="font-medium text-[#2d3435]">合并目标：</span>{existingSource.name}</p>}
           </div>
@@ -1518,7 +1557,11 @@ function SubmissionCard({
           {currentProbe && currentProbe.status !== "success" && mode === "idle" && (
             <div className="mt-3 flex items-start gap-2 rounded-lg bg-[#fff7e8] px-3 py-2.5 text-xs text-[#7a541b]">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>该渠道暂不支持自动采集，建议转入采集器待办或拒绝。</span>
+              <span>
+                {hasKnownCollector
+                  ? "已识别可用解析器，但本次试采集失败；可以先确认解析器入库，后续云端和本地采集脚本都会继续尝试。"
+                  : "该渠道暂不支持自动采集，建议转入采集器待办或拒绝。"}
+              </span>
             </div>
           )}
 
@@ -1529,11 +1572,15 @@ function SubmissionCard({
                 <button
                   type="button"
                   disabled={approveLoading}
-                  onClick={() => onApprove(submission, { name, collectionMethod: recommendedMethod })}
+                  onClick={() => onApprove(submission, { name, collectionMethod: recommendedMethod, collectorKind: recommendedCollector })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#2f7a4b] px-4 text-xs font-medium text-white transition-colors hover:bg-[#256a3d] disabled:opacity-60"
                 >
                   {approveLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                  {existingSource ? `合并到 ${existingSource.name}` : `通过并入库 ${currentProbe?.offerCount || 0} 条`}
+                  {existingSource
+                    ? `合并到 ${existingSource.name}`
+                    : hasSuccessfulProbe
+                      ? `通过并入库 ${currentProbe?.offerCount || 0} 条`
+                      : "通过并加入渠道"}
                 </button>
               )}
               {canApprove && (
@@ -1592,7 +1639,11 @@ function SubmissionCard({
           {mode === "approve" && (
             <div className="mt-4 space-y-3 rounded-lg border border-[#2f7a4b]/20 bg-[#e8f3ec]/20 p-4">
               <p className="text-xs leading-5 text-[#2f7a4b]">
-                {existingSource ? `合并到已有源「${existingSource.name}」。` : "该提交会创建渠道，并把试采集结果入库。"}
+                {existingSource
+                  ? `合并到已有源「${existingSource.name}」。`
+                  : hasSuccessfulProbe
+                    ? "该提交会创建渠道，并把试采集结果入库。"
+                    : "该提交会创建渠道，后续由已支持解析器自动采集。"}
               </p>
               <label className="block text-xs">
                 <span className="mb-1 block font-medium text-[#5a6061]">渠道名称</span>
@@ -1614,11 +1665,23 @@ function SubmissionCard({
                   <option value="browser">浏览器采集</option>
                 </select>
               </label>
+              <label className="block text-xs">
+                <span className="mb-1 block font-medium text-[#5a6061]">解析器</span>
+                <select
+                  value={collectorKind}
+                  onChange={(e) => setCollectorKind(e.target.value as CollectorKind)}
+                  className="h-9 w-full rounded-lg border border-[#adb3b4]/40 bg-white px-3 text-sm outline-none transition-colors focus:border-[#2d3435]"
+                >
+                  {collectorKindOptions.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </label>
               <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={approveLoading}
-                  onClick={() => onApprove(submission, { name, collectionMethod })}
+                  onClick={() => onApprove(submission, { name, collectionMethod, collectorKind })}
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#2f7a4b] px-4 text-xs font-medium text-white transition-colors hover:bg-[#256a3d] disabled:opacity-60"
                 >
                   {approveLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
@@ -1722,7 +1785,7 @@ function ProbePreview({ result }: { result: ProbeResult }) {
         }`}>
           {result.status === "success" ? "可自动采集" : result.status === "empty" ? "未采到报价" : result.status === "unsupported" ? "暂不支持" : "采集失败"}
         </span>
-        <span className="text-xs text-[#adb3b4]">采集器：{result.kind || "无"}</span>
+        <span className="text-xs text-[#adb3b4]">采集器：{collectorKindLabel(result.kind || "auto")}</span>
         <span className="text-xs text-[#adb3b4]">报价：{result.offerCount} 条</span>
         {typeof result.ms === "number" && <span className="text-xs text-[#adb3b4]">耗时：{result.ms}ms</span>}
       </div>
@@ -1964,6 +2027,7 @@ function SourceTableRow({
   onDeleteSource: (source: Source) => void;
 }) {
   const displayMethod = resolvedCollectionMethod(source);
+  const displayCollector = resolvedCollectorKind(source);
   const needsBrowser = sourceNeedsBrowser(source);
   const needsCollector = sourceNeedsCollector(source);
   const canHttpRetry = source.enabled && displayMethod === "http" && !needsCollector;
@@ -2002,7 +2066,10 @@ function SourceTableRow({
           <span className="mr-1 text-xs text-[#adb3b4] md:hidden">报价</span>
           {offerCount}
         </span>
-        <span className="text-sm text-[#5a6061]">{collectionMethodLabel(displayMethod)}</span>
+        <span className="text-xs leading-5 text-[#5a6061]">
+          <span className="block text-sm">{collectionMethodLabel(displayMethod)}</span>
+          <span className="block text-[#adb3b4]">{collectorKindLabel(displayCollector || "auto")}</span>
+        </span>
         <span className={sourceHealthClass(source)}>{sourceHealthLabel(source)}</span>
         <span className="text-xs leading-5 text-[#adb3b4]">
           {source.lastSuccessAt ? `确认 ${formatRelativeTime(source.lastSuccessAt)}` : source.lastCheckedAt ? "未确认成功" : "未采集"}
@@ -2223,6 +2290,19 @@ function collectionMethodMeta(meta: Record<string, unknown>, key: string): Colle
   return value === "aibijia_json" || value === "browser" || value === "http" || value === "manual" ? value : null;
 }
 
+function collectorKindMeta(meta: Record<string, unknown>, key: string): CollectorKind | null {
+  const value = stringMeta(meta, key);
+  return isCollectorKind(value) ? value : null;
+}
+
+function isCollectorKind(value: string | null): value is CollectorKind {
+  return Boolean(value && collectorKindOptions.some(([kind]) => kind === value));
+}
+
+function isRunnableCollector(value: CollectorKind | null): boolean {
+  return Boolean(value && value !== "auto" && value !== "browser" && value !== "unsupported");
+}
+
 function collectionMethodLabel(value: string): string {
   const labels: Record<string, string> = {
     aibijia_json: "Aibijia",
@@ -2232,6 +2312,10 @@ function collectionMethodLabel(value: string): string {
     aibijia_import: "Aibijia",
   };
   return labels[value] || value;
+}
+
+function collectorKindLabel(value: string): string {
+  return collectorKindOptions.find(([kind]) => kind === value)?.[1] || value;
 }
 
 function crawlStatusLabel(value: CrawlRun["status"]): string {
@@ -2289,13 +2373,37 @@ function sourceHost(source: Source): string {
   return host.replace(/^www\./, "").toLowerCase();
 }
 
+function inferCollectorKindFromSource(source: Source): CollectorKind | null {
+  const host = sourceHost(source);
+  const text = `${source.id} ${source.name} ${source.entryUrl} ${source.baseUrl || ""}`.toLowerCase();
+  if (["ai666.dnxb.cc", "aisou.pro", "caowo.store", "faka.redeemgpt.com", "feifei.shop", "talkai.cyou", "yh-mo.xyz", "zzshu.com"].includes(host)) return "kami";
+  if (["burstpro-ai.online", "card.kxandyou.com", "shop.aitonse.com", "shop.auto-subscribe.com", "ultra.makelove.cloud"].includes(host)) return "dujiao";
+  if (host === "pay.qxvx.cn" || host === "pay.ldxp.cn") return "shopApi";
+  if (host === "upgrade.xiaoheiwan.com") return "xiaoheiwan";
+  if (host === "aifk.opensora.de") return "opensoraHtml";
+  if (host === "makerich.club") return "makerichHtml";
+  if (host === "bei-bei.shop") return "beibeiHtml";
+  if (text.includes("burstpro")) return "dujiao";
+  return null;
+}
+
+function resolvedCollectorKind(source: Source): CollectorKind | null {
+  if (source.collectorKind && source.collectorKind !== "auto") return source.collectorKind;
+  return inferCollectorKindFromSource(source);
+}
+
 function sourceHasKnownAutoCollector(source: Source): boolean {
-  return knownAutoCollectorHosts.has(sourceHost(source));
+  if (source.collectorKind === "unsupported") return false;
+  if (source.collectorKind === "browser") return false;
+  const collector = resolvedCollectorKind(source);
+  return isRunnableCollector(collector) || knownAutoCollectorHosts.has(sourceHost(source));
 }
 
 function resolvedCollectionMethod(source: Source): CollectionMethod {
   if (source.collectionMethod === "aibijia_json") return "aibijia_json";
-  if (sourceHasKnownAutoCollector(source)) return "http";
+  const collector = resolvedCollectorKind(source);
+  if (isRunnableCollector(collector)) return "http";
+  if (collector === "browser") return "browser";
   return source.collectionMethod;
 }
 
@@ -2313,8 +2421,10 @@ function sourceNeedsBrowser(source: Source): boolean {
 
 function sourceNeedsCollector(source: Source): boolean {
   if (sourceHasKnownAutoCollector(source)) return false;
+  if (resolvedCollectorKind(source) === "browser") return false;
   const text = `${source.collectionMethod} ${source.lastError || ""} ${source.notes || ""}`.toLowerCase();
   return (
+    source.collectorKind === "unsupported" ||
     source.collectionMethod === "manual" ||
     text.includes("unsupported collector") ||
     text.includes("暂未识别") ||
@@ -2352,10 +2462,11 @@ function buildSourceCollectorContext(source: Source): string {
     `- 入口链接：${source.entryUrl}`,
     `- 主域名：${source.baseUrl || "未记录"}`,
     `- 当前采集方式：${collectionMethodLabel(resolvedCollectionMethod(source))}`,
+    `- 当前解析器：${collectorKindLabel(resolvedCollectorKind(source) || "auto")}`,
     `- 最近错误：${source.lastError || "未记录"}`,
     `- 现有报价数需要在后台渠道页确认`,
     "- 期望输出字段：sourceTitle, price, status, url, stockCount",
-    `- 验证方式：npm run collect:prices -- --source ${source.id} --post`,
+    `- 验证方式：${buildSourceCollectCommand(source)}`,
   ].join("\n");
 }
 

@@ -7,6 +7,7 @@ const createSchema = z.object({
   entryUrl: z.string().url(),
   baseUrl: z.string().url().nullable().optional(),
   collectionMethod: z.enum(["aibijia_json", "browser", "http", "manual"]).default("manual"),
+  collectorKind: z.enum(["auto", "kami", "dujiao", "shopApi", "xiaoheiwan", "opensoraHtml", "makerichHtml", "beibeiHtml", "browser", "unsupported"]).nullable().optional(),
   enabled: z.boolean().default(true),
   notes: z.string().nullable().optional(),
 });
@@ -15,6 +16,7 @@ const patchSchema = z.object({
   id: z.string().min(1),
   enabled: z.boolean().optional(),
   collectionMethod: z.enum(["aibijia_json", "browser", "http", "manual"]).optional(),
+  collectorKind: z.enum(["auto", "kami", "dujiao", "shopApi", "xiaoheiwan", "opensoraHtml", "makerichHtml", "beibeiHtml", "browser", "unsupported"]).nullable().optional(),
   notes: z.string().nullable().optional(),
 });
 
