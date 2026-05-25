@@ -7,6 +7,8 @@ import { getPublicProductSummary } from "@/lib/data";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
 export const revalidate = 300;
+export const dynamic = "force-static";
+export const dynamicParams = true;
 
 const productTypeLabels: Record<string, string> = {
   "订阅/会员": "订阅/会员",
