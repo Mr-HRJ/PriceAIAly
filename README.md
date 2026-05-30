@@ -25,7 +25,7 @@
 ---
 
 <p align="center">
-  <img src="docs/assets/priceai-screenshot.png" alt="PriceAI product screenshot" width="100%" />
+  <img src="docs/assets/image.png" alt="PriceAI product screenshot" width="100%" />
 </p>
 
 ## 1. 为什么做 PriceAI
