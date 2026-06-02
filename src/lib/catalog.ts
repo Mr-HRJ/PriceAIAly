@@ -318,6 +318,10 @@ export function classifyOffer(
     return getCanonicalProduct("grok-account");
   }
 
+  if (isAmbiguousPlusPackage(value)) {
+    return getCanonicalProduct("other-product");
+  }
+
   if (isChatGptProduct(value)) {
     if (isChatGptPro20(value)) {
       return getCanonicalProduct("chatgpt-pro-20x");
@@ -327,7 +331,7 @@ export function classifyOffer(
       return getCanonicalProduct("chatgpt-pro-5x");
     }
 
-    if (matches(value, ["free", "普号", "白号", "普通号", "空白账号", "长效"]) || isNegatedPlus(value)) {
+    if (isChatGptFreeAccount(value) || isNegatedPlus(value)) {
       return getCanonicalProduct("chatgpt-free-account");
     }
 
@@ -530,6 +534,10 @@ function isSupportService(value: string): boolean {
 }
 
 function isVerificationService(value: string): boolean {
+  if (isAiSubscriptionOrAccountTitle(value)) {
+    return false;
+  }
+
   if (matches(value, ["已接码", "已手机接码", "已接码验证", "已手机接码验证"])) {
     return false;
   }
@@ -560,6 +568,7 @@ function isOtherTool(value: string): boolean {
 }
 
 function isNegatedPlus(value: string): boolean {
+  if (/不是\s*plus\s*的/.test(value)) return false;
   return matches(value, ["非plus", "非 plus", "不是plus", "不是 plus", "不含plus", "不含 plus", "无plus", "无 plus"]);
 }
 
@@ -590,6 +599,10 @@ function isPureEmail(value: string): boolean {
 
   return !matches(value, [
     "chatgpt",
+    "gpt free",
+    "gpt 普号",
+    "gpt 白号",
+    "gpt 普通",
     "gpt plus",
     "openai 普号",
     "claude",
@@ -614,6 +627,72 @@ function isGrokProduct(value: string): boolean {
 function isChatGptProduct(value: string): boolean {
   if (matches(value, ["gemini", "claude", "grok"])) return false;
   return matches(value, ["chatgpt", "gpt", "openai", "plus", "team", "business", "t5"]);
+}
+
+function isAiSubscriptionOrAccountTitle(value: string): boolean {
+  if (!matches(value, ["chatgpt", "gpt", "openai", "claude", "gemini", "grok", "plus", "team", "business"])) {
+    return false;
+  }
+
+  return matches(value, [
+    "plus",
+    "pro",
+    "team",
+    "business",
+    "free",
+    "普号",
+    "白号",
+    "普通号",
+    "普通账号",
+    "成品号",
+    "账号",
+    "兑换号",
+    "cdk",
+    "直充",
+    "充值",
+    "卡密",
+    "月卡",
+    "会员",
+  ]);
+}
+
+function isChatGptFreeAccount(value: string): boolean {
+  if (matches(value, ["free", "普号", "白号", "普通号", "普通账号", "空白账号"])) {
+    return true;
+  }
+
+  return matches(value, ["长效"]) && !matches(value, ["plus", "pro", "team", "business"]);
+}
+
+function isAmbiguousPlusPackage(value: string): boolean {
+  if (!matches(value, ["plus"])) return false;
+  if (matches(value, [
+    "chatgpt plus",
+    "gpt plus",
+    "plus 月卡",
+    "plus 一个月",
+    "plus 账号",
+    "plus 成品号",
+    "plus 日抛",
+    "plus 直充",
+    "plus 代充",
+    "plus 卡密",
+    "plus 自助",
+    "网页版plus",
+    "网页端",
+    "icloud邮箱plus",
+    "保首登",
+    "福利号",
+    "特价plus",
+  ])) {
+    return false;
+  }
+
+  if (/plus\s*\d+\s*(刀|美元|美金|万)/.test(value)) return true;
+  if (/纯\s*plus/.test(value) && /\d+\s*(刀|美元|美金|万)/.test(value)) return true;
+  if (matches(value, ["限时体验版本", "不限时"]) && value.includes("plus")) return true;
+
+  return false;
 }
 
 function isChatGptPro20(value: string): boolean {
