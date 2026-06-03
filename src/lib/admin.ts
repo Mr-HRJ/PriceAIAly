@@ -1056,26 +1056,52 @@ function getShopTokenFromHtml(html: string | null): string | null {
 async function fetchShopTokenFromGoods(baseUrl: string, itemUrl: string, goodsKey: string): Promise<string | null> {
   if (!goodsKey) return null;
 
-  try {
-    const response = await fetch(`${baseUrl}/shopApi/Shop/goodsInfo`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/plain, */*",
-        "user-agent": "AIPriceHubBot/1.0 (+https://priceai.cc)",
-        referer: itemUrl,
-        visitorid: `review${Math.random().toString(36).slice(2, 10)}`,
-      },
-      body: JSON.stringify({ goods_key: goodsKey, trade_no: "" }),
-      signal: AbortSignal.timeout(SHOP_API_TIMEOUT_MS),
-    });
-    if (!response.ok) return null;
-    const payload = await response.json().catch(() => null) as { data?: { user?: { token?: unknown } } } | null;
-    const token = payload?.data?.user?.token;
-    return typeof token === "string" && token.trim() ? token.trim() : null;
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(`${baseUrl}/shopApi/Shop/goodsInfo`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/plain, */*",
+          "user-agent": attempt === 0
+            ? "AIPriceHubBot/1.0 (+https://priceai.cc)"
+            : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+          origin: baseUrl,
+          referer: itemUrl,
+          visitorid: `review${Math.random().toString(36).slice(2, 10)}`,
+        },
+        body: JSON.stringify({ goods_key: goodsKey, trade_no: "" }),
+        signal: AbortSignal.timeout(SHOP_API_TIMEOUT_MS),
+      });
+      if (!response.ok) continue;
+      const payload = await response.json().catch(() => null);
+      const token = getShopTokenFromGoodsPayload(payload);
+      if (token) return token;
+    } catch {
+      /* retry once with a browser-like user agent */
+    }
   }
+  return null;
+}
+
+function getShopTokenFromGoodsPayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = (payload as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return null;
+  const user = (data as { user?: unknown }).user;
+  if (!user || typeof user !== "object") return null;
+
+  const token = (user as { token?: unknown }).token;
+  if (typeof token === "string" && token.trim()) return token.trim();
+
+  const link = (user as { link?: unknown }).link;
+  if (typeof link === "string" && link.trim()) {
+    const parsed = safeUrl(link);
+    const tokenFromLink = parsed ? getShopToken(parsed.pathname) : null;
+    if (tokenFromLink) return tokenFromLink;
+  }
+
+  return null;
 }
 
 async function findSourceFromKnownOfferUrl(itemUrl: string): Promise<Source | null> {
