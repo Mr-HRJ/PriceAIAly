@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { UmamiAnalytics } from "@/components/UmamiAnalytics";
 import "./globals.css";
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="zh-CN" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         {children}
+        <SpeedInsights />
         <GoogleAnalytics />
         <UmamiAnalytics />
       </body>
