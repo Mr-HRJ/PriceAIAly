@@ -537,9 +537,19 @@ export function PriceExplorer({
         <div className="mb-6 space-y-4 md:mb-9 md:space-y-5">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
             <div className="min-w-0">
-              <h1 className="font-serif text-2xl font-semibold tracking-normal text-[#202829] md:text-4xl">
-                {title}
-              </h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="min-w-0 font-serif text-2xl font-semibold tracking-normal text-[#202829] md:text-4xl">
+                  {title}
+                </h1>
+                <button
+                  type="button"
+                  onClick={openSubmission}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#2d3435] px-3.5 text-sm font-semibold text-[#f8f8f8] shadow-[0_14px_40px_rgba(45,52,53,0.16)] md:hidden"
+                >
+                  <Plus size={16} />
+                  提交
+                </button>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.72rem] font-medium text-[#5a6061] md:mt-4 md:gap-3">
                 <span>
                   最近更新：{dataLoading ? "正在同步" : <RelativeTime value={explorerData.generatedAt} />}
@@ -549,14 +559,6 @@ export function PriceExplorer({
                 <span className="hidden h-1 w-1 rounded-full bg-[#adb3b4] md:inline-block" />
                 <span className="hidden md:inline">主价格优先取有货最低价，缺货会明显标注</span>
               </div>
-              <button
-                type="button"
-                onClick={openSubmission}
-                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2d3435] px-4 text-sm font-semibold text-[#f8f8f8] shadow-[0_14px_40px_rgba(45,52,53,0.16)] md:hidden"
-              >
-                <Plus size={16} />
-                提交渠道
-              </button>
             </div>
 
             <ExplorerMetrics

@@ -200,9 +200,22 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
       <div className="mb-6 space-y-4 md:mb-8 md:space-y-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl font-semibold tracking-normal text-[#202829] md:text-4xl">
-              {buildTitle(family, scopeMode, familyOptions)}
-            </h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="min-w-0 font-serif text-2xl font-semibold tracking-normal text-[#202829] md:text-4xl">
+                {buildTitle(family, scopeMode, familyOptions)}
+              </h1>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmitOpen(true);
+                  setSubmitMessage(null);
+                }}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#2d3435] px-3.5 text-sm font-semibold text-[#f8f8f8] shadow-[0_14px_40px_rgba(45,52,53,0.16)] md:hidden"
+              >
+                <Send size={16} />
+                提交
+              </button>
+            </div>
             <p className="mt-3 hidden max-w-[75ch] text-sm leading-7 text-[#5a6061] md:block">
               按具体模型和正规公开渠道重新组织 API 信息。你可以先查某个模型有哪些官方 API、套餐或免费入口，也可以反过来查某个渠道或套餐覆盖哪些模型。
             </p>
@@ -496,11 +509,6 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
         onClose={() => setFiltersOpen(false)}
         onCurrencyChange={setCurrency}
         onTypeFilterChange={setTypeFilter}
-        onSubmitChannel={() => {
-          setFiltersOpen(false);
-          setSubmitOpen(true);
-          setSubmitMessage(null);
-        }}
         onReset={() => {
           setCurrency("CNY");
           setTypeFilter("all");
@@ -825,7 +833,6 @@ function ApiMobileFilterSheet({
   onClose,
   onCurrencyChange,
   onTypeFilterChange,
-  onSubmitChannel,
   onReset,
 }: {
   open: boolean;
@@ -836,7 +843,6 @@ function ApiMobileFilterSheet({
   onClose: () => void;
   onCurrencyChange: (currency: ApiCurrency) => void;
   onTypeFilterChange: (typeFilter: TypeFilter) => void;
-  onSubmitChannel: () => void;
   onReset: () => void;
 }) {
   if (!open) return null;
@@ -854,7 +860,7 @@ function ApiMobileFilterSheet({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-lg font-bold text-[#202829]">筛选与操作</p>
-            <p className="mt-1 text-sm text-[#5a6061]">币种、报价类型和 API 渠道提交都放在这里。</p>
+            <p className="mt-1 text-sm text-[#5a6061]">调整币种和报价类型，结果会即时更新。</p>
           </div>
           <button
             type="button"
@@ -908,15 +914,6 @@ function ApiMobileFilterSheet({
               </div>
             </section>
           ) : null}
-
-          <button
-            type="button"
-            onClick={onSubmitChannel}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#2d3435] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#1f2526]"
-          >
-            <Send size={16} />
-            提交 API 渠道
-          </button>
         </div>
 
         <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-[#dfe4e5] pt-4">
