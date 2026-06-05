@@ -1,0 +1,11 @@
+# Brand Icon Sources
+
+These assets are cached locally for stable rendering and performance. They are sourced from official public brand or product sites.
+
+| File | Source | Notes |
+|---|---|---|
+| `deepseek.png` | `https://www.deepseek.com/favicon.ico` | Converted from official favicon to PNG. |
+| `qwen.png` | `https://qwenlm.github.io/favicon.png` | Official QwenLM site favicon. |
+| `kimi.png` | `https://www.kimi.com/favicon.ico` | Converted from official favicon to PNG. |
+| `glm.png` | `https://open.bigmodel.cn/img/icons/apple-touch-icon-152x152.png` | Official BigModel/Open Platform apple touch icon. |
+| `minimax.png` | `https://www.minimax.io/favicon.ico` | Converted from official favicon to PNG. |

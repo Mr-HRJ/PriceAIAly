@@ -2,11 +2,11 @@ import { Layers3 } from "lucide-react";
 import Image from "next/image";
 
 const iconByFamily: Record<string, string> = {
-  DeepSeek: "/brand-icons/deepseek.svg",
-  Qwen: "/brand-icons/qwen.svg",
-  Kimi: "/brand-icons/kimi.svg",
-  GLM: "/brand-icons/glm.svg",
-  MiniMax: "/brand-icons/minimax.svg",
+  DeepSeek: "/brand-icons/deepseek.png",
+  Qwen: "/brand-icons/qwen.png",
+  Kimi: "/brand-icons/kimi.png",
+  GLM: "/brand-icons/glm.png",
+  MiniMax: "/brand-icons/minimax.png",
 };
 
 export function ApiModelIcon({
