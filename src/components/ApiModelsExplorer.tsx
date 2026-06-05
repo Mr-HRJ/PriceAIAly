@@ -4,6 +4,7 @@ import {
   ArrowUpDown,
   ChevronRight,
   Database,
+  Filter,
   Layers3,
   Loader2,
   PackageCheck,
@@ -38,6 +39,7 @@ const typeFilters = ["all", "official", "subscription", "router", "free"] as con
 type TypeFilter = (typeof typeFilters)[number];
 type ScopeMode = "models" | "offers" | "providers";
 type FamilyFilter = "all" | string;
+type MobileSortMode = "recommended" | "price" | "updated" | "channels";
 
 const typeFilterLabels: Record<TypeFilter, string> = {
   all: "全部类型",
@@ -53,6 +55,8 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [currency, setCurrency] = useState<ApiCurrency>("CNY");
+  const [mobileSort, setMobileSort] = useState<MobileSortMode>("recommended");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitUrls, setSubmitUrls] = useState("");
   const [submitName, setSubmitName] = useState("");
@@ -89,15 +93,17 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
     () =>
       getApiModelOffers(family, dataset)
         .filter((offer) => matchesOffer(offer, normalizedQuery))
-        .filter((offer) => typeFilter === "all" || offer.provider.type === typeFilter),
-    [dataset, family, normalizedQuery, typeFilter],
+        .filter((offer) => typeFilter === "all" || offer.provider.type === typeFilter)
+        .sort((a, b) => compareApiOffers(a, b, mobileSort)),
+    [dataset, family, mobileSort, normalizedQuery, typeFilter],
   );
   const providerSummaries = useMemo(
     () =>
       getApiProviderSummaries(family, dataset)
         .filter((summary) => matchesProviderSummary(summary, normalizedQuery))
-        .filter((summary) => typeFilter === "all" || summary.provider.type === typeFilter),
-    [dataset, family, normalizedQuery, typeFilter],
+        .filter((summary) => typeFilter === "all" || summary.provider.type === typeFilter)
+        .sort((a, b) => compareApiProviders(a, b, mobileSort)),
+    [dataset, family, mobileSort, normalizedQuery, typeFilter],
   );
 
   const freeProviderIds = new Set(dataset.providers.filter((provider) => provider.type === "free").map((provider) => provider.id));
@@ -121,6 +127,17 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [submitLoading, submitOpen]);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [filtersOpen]);
 
   async function handleApiProviderSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -224,9 +241,8 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
               onChange={(value) => setFamily(value)}
             />
           </div>
-          <div className="-mx-5 overflow-x-auto px-5">
-            <div className="flex w-max items-center gap-2 pb-1">
-              <div className="inline-flex h-11 shrink-0 items-center rounded-full bg-[#e4e9ea] p-1">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+            <div className="inline-flex h-11 min-w-0 items-center rounded-full bg-[#e4e9ea] p-1">
                 <ViewToggleButton
                   active={scopeMode === "models"}
                   icon={<PackageCheck size={16} />}
@@ -245,59 +261,31 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
                   label="渠道"
                   onClick={() => setScopeMode("providers")}
                 />
-              </div>
-              <div className="inline-flex h-11 shrink-0 items-center rounded-full bg-[#e4e9ea] p-1">
-                {(["CNY", "USD"] as ApiCurrency[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setCurrency(item)}
-                    className={`h-9 rounded-full px-3 text-sm font-semibold transition ${
-                      currency === item ? "bg-white text-[#202829] shadow-[0_8px_24px_rgba(45,52,53,0.08)]" : "text-[#5a6061] hover:text-[#202829]"
-                    }`}
-                  >
-                    {item === "CNY" ? "人民币" : "美元"}
-                  </button>
-                ))}
-              </div>
-              <div className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-[#e4e9ea] px-3 text-sm font-semibold text-[#2d3435]">
+            </div>
+            <label className="relative inline-flex h-11 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-[#e4e9ea] px-3 text-sm font-semibold text-[#2d3435]">
                 <ArrowUpDown size={16} />
-                {scopeMode === "models" ? "模型优先" : scopeMode === "offers" ? "价格优先" : "渠道优先"}
-              </div>
+                <span className="truncate">{mobileSortLabel(mobileSort, scopeMode)}</span>
+                <select
+                  aria-label="排序"
+                  value={mobileSort}
+                  onChange={(event) => setMobileSort(event.target.value as MobileSortMode)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                >
+                  <option value="recommended">推荐排序</option>
+                  <option value="price">低价优先</option>
+                  <option value="updated">最新优先</option>
+                  <option value="channels">渠道优先</option>
+                </select>
+            </label>
               <button
                 type="button"
-                onClick={() => {
-                  setSubmitOpen(true);
-                  setSubmitMessage(null);
-                }}
-                className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#2d3435] px-3.5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#1f2526]"
+                onClick={() => setFiltersOpen(true)}
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#e4e9ea] px-3 text-sm font-semibold text-[#2d3435] transition hover:bg-[#dde4e5]"
               >
-                <Send size={16} />
-                提交
+                <Filter size={16} />
+                筛选{mobileFilterCount({ currency, typeFilter }) ? ` ${mobileFilterCount({ currency, typeFilter })}` : ""}
               </button>
-            </div>
           </div>
-          {scopeMode !== "models" ? (
-            <div className="-mx-5 overflow-x-auto px-5">
-              <div className="flex w-max gap-2 pb-1">
-                {typeFilters.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setTypeFilter(item)}
-                    aria-label={`类型筛选：${typeFilterLabels[item]}`}
-                    className={`inline-flex h-10 shrink-0 items-center rounded-full px-3.5 text-xs font-semibold transition ${
-                      typeFilter === item
-                        ? "bg-[#2d3435] text-[#f8f8f8] shadow-[0_10px_30px_rgba(45,52,53,0.10)]"
-                        : "bg-white text-[#5a6061] ring-1 ring-[#adb3b4]/15 hover:bg-[#f7f9f9] hover:text-[#202829]"
-                    }`}
-                  >
-                    {typeFilterLabels[item]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="hidden space-y-3 rounded-lg bg-[#f2f4f4] p-3 shadow-[0_18px_50px_rgba(45,52,53,0.04)] ring-1 ring-[#adb3b4]/10 md:block">
@@ -498,6 +486,26 @@ export function ApiModelsExplorer({ dataset }: { dataset: ApiModelDataset }) {
           </section>
         </div>
       ) : null}
+
+      <ApiMobileFilterSheet
+        open={filtersOpen}
+        currency={currency}
+        typeFilter={typeFilter}
+        resultCount={resultCount}
+        showTypeFilter={scopeMode !== "models"}
+        onClose={() => setFiltersOpen(false)}
+        onCurrencyChange={setCurrency}
+        onTypeFilterChange={setTypeFilter}
+        onSubmitChannel={() => {
+          setFiltersOpen(false);
+          setSubmitOpen(true);
+          setSubmitMessage(null);
+        }}
+        onReset={() => {
+          setCurrency("CNY");
+          setTypeFilter("all");
+        }}
+      />
 
       {scopeMode === "models" ? (
         modelSummaries.length ? (
@@ -808,6 +816,130 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ApiMobileFilterSheet({
+  open,
+  currency,
+  typeFilter,
+  resultCount,
+  showTypeFilter,
+  onClose,
+  onCurrencyChange,
+  onTypeFilterChange,
+  onSubmitChannel,
+  onReset,
+}: {
+  open: boolean;
+  currency: ApiCurrency;
+  typeFilter: TypeFilter;
+  resultCount: number;
+  showTypeFilter: boolean;
+  onClose: () => void;
+  onCurrencyChange: (currency: ApiCurrency) => void;
+  onTypeFilterChange: (typeFilter: TypeFilter) => void;
+  onSubmitChannel: () => void;
+  onReset: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="API 模型筛选">
+      <button
+        type="button"
+        aria-label="关闭筛选"
+        className="absolute inset-0 h-full w-full bg-[#202829]/35 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <section className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-2xl bg-[#f9f9f9] px-5 pb-5 pt-4 shadow-[0_-20px_70px_rgba(45,52,53,0.18)] ring-1 ring-[#adb3b4]/20">
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#adb3b4]/60" />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-lg font-bold text-[#202829]">筛选与操作</p>
+            <p className="mt-1 text-sm text-[#5a6061]">币种、报价类型和 API 渠道提交都放在这里。</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e4e9ea] text-[#5a6061] transition hover:bg-[#dde4e5] hover:text-[#202829]"
+            aria-label="关闭筛选"
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          <section>
+            <p className="mb-2 text-xs font-semibold text-[#5a6061]">币种</p>
+            <div className="inline-flex h-11 items-center rounded-full bg-[#e4e9ea] p-1">
+              {(["CNY", "USD"] as ApiCurrency[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => onCurrencyChange(item)}
+                  className={`h-9 rounded-full px-4 text-sm font-semibold transition ${
+                    currency === item
+                      ? "bg-white text-[#202829] shadow-[0_8px_24px_rgba(45,52,53,0.08)]"
+                      : "text-[#5a6061] hover:text-[#202829]"
+                  }`}
+                >
+                  {item === "CNY" ? "人民币" : "美元"}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {showTypeFilter ? (
+            <section>
+              <p className="mb-2 text-xs font-semibold text-[#5a6061]">报价类型</p>
+              <div className="flex flex-wrap gap-2">
+                {typeFilters.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => onTypeFilterChange(item)}
+                    className={`inline-flex h-10 items-center rounded-full px-3.5 text-xs font-semibold transition ${
+                      typeFilter === item
+                        ? "bg-[#2d3435] text-[#f8f8f8] shadow-[0_10px_30px_rgba(45,52,53,0.10)]"
+                        : "bg-white text-[#5a6061] ring-1 ring-[#adb3b4]/15 hover:bg-[#f7f9f9] hover:text-[#202829]"
+                    }`}
+                  >
+                    {typeFilterLabels[item]}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onSubmitChannel}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#2d3435] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#1f2526]"
+          >
+            <Send size={16} />
+            提交 API 渠道
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-[#dfe4e5] pt-4">
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[#e4e9ea] px-4 text-sm font-semibold text-[#2d3435] transition hover:bg-[#dde4e5]"
+          >
+            重置
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[#2d3435] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#1f2526]"
+          >
+            查看 {resultCount} 条结果
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function TypeChip({ type }: { type: ApiProviderType }) {
   const classNameByType: Record<ApiProviderType, string> = {
     official: "bg-[#e8f3ec] text-[#2f7a4b]",
@@ -960,6 +1092,80 @@ function matchesOffer(offer: ApiModelOfferWithRelations, query: string) {
     .join(" ")
     .toLowerCase()
     .includes(query);
+}
+
+function mobileSortLabel(sort: MobileSortMode, scopeMode: ScopeMode) {
+  if (sort === "price") return "低价";
+  if (sort === "updated") return "最新";
+  if (sort === "channels") return scopeMode === "providers" ? "覆盖" : "渠道";
+  return "推荐";
+}
+
+function mobileFilterCount({ currency, typeFilter }: { currency: ApiCurrency; typeFilter: TypeFilter }) {
+  return Number(currency !== "CNY") + Number(typeFilter !== "all");
+}
+
+function compareApiOffers(a: ApiModelOfferWithRelations, b: ApiModelOfferWithRelations, sort: MobileSortMode) {
+  if (sort === "price") {
+    const priceDelta = compareOptionalNumber(apiPriceRank(a.inputPrice), apiPriceRank(b.inputPrice));
+    if (priceDelta !== 0) return priceDelta;
+  }
+
+  if (sort === "updated") {
+    const updatedDelta = b.updatedAt.localeCompare(a.updatedAt);
+    if (updatedDelta !== 0) return updatedDelta;
+  }
+
+  if (sort === "channels") {
+    const providerDelta = a.provider.name.localeCompare(b.provider.name, "zh-CN");
+    if (providerDelta !== 0) return providerDelta;
+  }
+
+  const typeDelta = providerTypeRank(a.provider.type) - providerTypeRank(b.provider.type);
+  if (typeDelta !== 0) return typeDelta;
+  return a.model.displayName.localeCompare(b.model.displayName, "zh-CN") || a.provider.name.localeCompare(b.provider.name, "zh-CN");
+}
+
+function compareApiProviders(a: ApiProviderSummary, b: ApiProviderSummary, sort: MobileSortMode) {
+  if (sort === "price") {
+    const priceDelta = compareOptionalNumber(a.primaryPlan?.priceUsdMonthly ?? null, b.primaryPlan?.priceUsdMonthly ?? null);
+    if (priceDelta !== 0) return priceDelta;
+  }
+
+  if (sort === "updated") {
+    const updatedDelta = b.latestUpdatedAt.localeCompare(a.latestUpdatedAt);
+    if (updatedDelta !== 0) return updatedDelta;
+  }
+
+  if (sort === "channels") {
+    const coverageDelta = (b.modelCount || b.offerCount) - (a.modelCount || a.offerCount);
+    if (coverageDelta !== 0) return coverageDelta;
+  }
+
+  const typeDelta = providerTypeRank(a.provider.type) - providerTypeRank(b.provider.type);
+  if (typeDelta !== 0) return typeDelta;
+  return a.provider.name.localeCompare(b.provider.name, "zh-CN");
+}
+
+function apiPriceRank(price: ApiModelOfferWithRelations["inputPrice"]) {
+  if (price.kind !== "numeric") return null;
+  return price.cnyPerMTokens ?? (typeof price.usdPerMTokens === "number" ? price.usdPerMTokens * 7.2 : null);
+}
+
+function compareOptionalNumber(a: number | null | undefined, b: number | null | undefined) {
+  if (typeof a !== "number" && typeof b !== "number") return 0;
+  if (typeof a !== "number") return 1;
+  if (typeof b !== "number") return -1;
+  return a - b;
+}
+
+function providerTypeRank(type: ApiProviderType) {
+  return {
+    official: 0,
+    subscription: 1,
+    router: 2,
+    free: 3,
+  }[type];
 }
 
 function PriceText({ value }: { value: string }) {
