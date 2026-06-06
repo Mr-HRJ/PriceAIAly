@@ -263,6 +263,44 @@ export default async function AboutPage() {
           </div>
         </section>
 
+        <section className="mt-16 rounded-lg bg-white p-6 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15 md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[0.72fr_1fr] lg:items-start">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Start here</p>
+              <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight tracking-normal text-[#202829]">
+                第一次买，可以先看 ChatGPT 打样页。
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#5a6061]">
+                我们会先用 ChatGPT 建立平台页和新手指南模板：解释商品类型、展示当前价格摘要，再把用户带回比价工具。
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link
+                href="/platforms/chatgpt"
+                className="rounded-lg bg-[#f2f4f4] p-5 transition hover:-translate-y-0.5 hover:bg-[#ebeeef]"
+              >
+                <span className="text-sm font-semibold text-[#202829]">ChatGPT 平台价格页</span>
+                <span className="mt-2 block text-sm leading-6 text-[#5a6061]">查看 Plus、Pro、Team、普号和 API/CDK 的价格摘要。</span>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#2d3435]">
+                  查看页面
+                  <ArrowRight size={15} />
+                </span>
+              </Link>
+              <Link
+                href="/guides/chatgpt-subscription-options"
+                className="rounded-lg bg-[#f2f4f4] p-5 transition hover:-translate-y-0.5 hover:bg-[#ebeeef]"
+              >
+                <span className="text-sm font-semibold text-[#202829]">ChatGPT 获取方式指南</span>
+                <span className="mt-2 block text-sm leading-6 text-[#5a6061]">先理解官方订阅、地区价、代充、成品号和 API/CDK。</span>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#2d3435]">
+                  阅读指南
+                  <ArrowRight size={15} />
+                </span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section className="mt-18 grid gap-10 lg:grid-cols-[0.7fr_1fr] lg:items-start">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">How it works</p>

@@ -38,6 +38,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.75,
     },
+    {
+      url: `${siteUrl}/platforms/chatgpt`,
+      lastModified: data.generatedAt ? new Date(data.generatedAt) : now,
+      changeFrequency: "daily",
+      priority: 0.78,
+    },
+    {
+      url: `${siteUrl}/guides/chatgpt-subscription-options`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.72,
+    },
   ];
 
   const productRoutes: MetadataRoute.Sitemap = data.products.map((product) => ({

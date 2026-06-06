@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Clock3, ExternalLink, Layers3 } from "lucide-react";
+import { ArrowRight, Clock3, ExternalLink, Layers3 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandIcon } from "@/components/BrandIcon";
@@ -137,6 +137,37 @@ export default async function ProductDetail({
           initialCount={product.offerCount}
           initialData={initialOffers}
         />
+
+        {product.platform === "ChatGPT" ? (
+          <section className="mt-8 rounded-lg bg-[#f2f4f4] p-5 ring-1 ring-[#adb3b4]/15">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold tracking-normal text-[#202829]">
+                  想先弄清 ChatGPT 各种获取方式？
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[#5a6061]">
+                  可以先看平台价格页和新手指南，再回到这里核验具体渠道报价。
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link
+                  href="/platforms/chatgpt"
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#dde4e5] px-4 text-sm font-semibold text-[#2d3435] transition hover:bg-[#d3dcdd]"
+                >
+                  平台页
+                  <ArrowRight size={15} />
+                </Link>
+                <Link
+                  href="/guides/chatgpt-subscription-options"
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#2d3435] px-4 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#202829]"
+                >
+                  指南
+                  <ArrowRight size={15} />
+                </Link>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <p className="mt-8 text-xs leading-6 text-[#5a6061]">
           免责声明：本站仅聚合公开采集或审核通过的报价信息，不参与交易，实际价格、库存、质保和售后规则以原平台为准。

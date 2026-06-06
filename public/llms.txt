@@ -18,6 +18,8 @@ GitHub: https://github.com/physics-dimension/PriceAI
 - About: https://priceai.cc/about
 - Official subscription prices: https://priceai.cc/official-prices
 - API model radar: https://priceai.cc/api-models
+- ChatGPT platform page: https://priceai.cc/platforms/chatgpt
+- ChatGPT subscription guide: https://priceai.cc/guides/chatgpt-subscription-options
 - Product detail pages: https://priceai.cc/products/
 - Sitemap: https://priceai.cc/sitemap.xml
 
