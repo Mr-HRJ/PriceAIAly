@@ -23,9 +23,9 @@ import type {
 
 const PUBLIC_OFFER_LIMIT = 1200;
 const SUPABASE_PAGE_SIZE = 1000;
-const PUBLIC_DATA_CACHE_TTL_MS = 30_000;
-const EXPLORER_DATA_CACHE_TTL_MS = 30_000;
-const PRODUCT_OFFERS_CACHE_TTL_MS = 30_000;
+const PUBLIC_DATA_CACHE_TTL_MS = 120_000;
+const EXPLORER_DATA_CACHE_TTL_MS = 120_000;
+const PRODUCT_OFFERS_CACHE_TTL_MS = 120_000;
 const DASHBOARD_DATA_CACHE_TTL_MS = 30_000;
 const ADMIN_DATA_CACHE_TTL_MS = 30_000;
 const ADMIN_OFFER_SAMPLE_LIMIT = 80;
@@ -915,10 +915,54 @@ export async function listPublicOffers(filters: OfferListFilters = {}) {
   });
 
   return {
-    rows: rows.slice(offset, offset + limit),
+    rows: rows.slice(offset, offset + limit).map(compactPublicOfferRow),
     total: rows.length,
     limited: rows.length > offset + limit,
     generatedAt: publicData.generatedAt,
+  };
+}
+
+function compactPublicOfferRow(row: { offer: RawOffer; product: ExplorerProductSummary }) {
+  return {
+    offer: compactPublicOffer(row.offer),
+    product: compactPublicProduct(row.product),
+  };
+}
+
+function compactPublicOffer(offer: RawOffer): RawOffer {
+  return {
+    id: offer.id,
+    sourceId: offer.sourceId,
+    sourceName: offer.sourceName,
+    sourceStoreName: offer.sourceStoreName,
+    sourceTitle: offer.sourceTitle,
+    price: offer.price,
+    currency: offer.currency,
+    status: offer.status,
+    url: offer.url,
+    tags: [],
+    stockCount: offer.stockCount,
+    capturedAt: offer.capturedAt,
+    sourceUpdatedAt: offer.sourceUpdatedAt,
+    lastSeenAt: offer.lastSeenAt,
+    verifiedAt: offer.verifiedAt,
+    expiresAt: offer.expiresAt,
+    effectiveStatus: offer.effectiveStatus,
+    freshnessStatus: offer.freshnessStatus,
+  };
+}
+
+function compactPublicProduct(product: ExplorerProductSummary): CanonicalProduct {
+  return {
+    id: product.id,
+    slug: product.slug,
+    displayName: product.displayName,
+    platform: product.platform,
+    productType: product.productType,
+    spec: product.spec,
+    summary: product.summary,
+    aliases: [],
+    updatedAt: product.updatedAt,
   };
 }
 

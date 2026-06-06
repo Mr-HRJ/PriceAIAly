@@ -11,6 +11,8 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 import { stableId } from "@/lib/utils";
 import { z } from "zod";
 
+let lastCrawlRunPrunedAt = 0;
+
 const offerSchema = z.object({
   sourceId: z.string().min(1).optional(),
   sourceName: z.string().min(1),
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
     const seenOfferIds = seenOfferIdsFromDetails(payload.details) || offers.map(rawOfferInputId);
     const fullSnapshot = fullSnapshotFromDetails(payload.details, payload.status);
 
-    await recordSourceCollectionResult({
+    const sourceCollectionResult = await recordSourceCollectionResult({
       sourceId: source.id,
       status: payload.status,
       checkedAt: finishedAt,
@@ -94,7 +96,13 @@ export async function POST(request: Request) {
     });
 
     if (error) throw error;
-    if (payload.status !== "success" || upsertResult.writtenCount > 0 || fullSnapshot) {
+    await pruneOldCrawlRuns(supabase, finishedAt);
+
+    if (
+      payload.status !== "success" ||
+      upsertResult.writtenCount > 0 ||
+      sourceCollectionResult.changedOfferCount > 0
+    ) {
       clearPublicDataCache();
     }
 
@@ -110,6 +118,32 @@ export async function POST(request: Request) {
       { status: error instanceof z.ZodError ? 400 : 500 },
     );
   }
+}
+
+async function pruneOldCrawlRuns(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  nowIso: string,
+) {
+  const now = Date.now();
+  if (now - lastCrawlRunPrunedAt < 6 * 60 * 60 * 1000) return;
+  lastCrawlRunPrunedAt = now;
+
+  const retentionDays = crawlRunRetentionDays();
+  if (!retentionDays) return;
+
+  const cutoff = new Date(new Date(nowIso).getTime() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase.from("crawl_runs").delete().lt("started_at", cutoff);
+  if (error) {
+    console.warn("Failed to prune old crawl runs:", error.message);
+  }
+}
+
+function crawlRunRetentionDays(): number {
+  const raw = process.env.PRICEAI_CRAWL_RUN_RETENTION_DAYS || "14";
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return 14;
+  if (value <= 0) return 0;
+  return Math.max(1, Math.min(Math.trunc(value), 365));
 }
 
 function collectorKindFromDetails(details: Record<string, unknown> | undefined) {

@@ -34,6 +34,8 @@ export type RawOfferUpsertResult = {
   unchangedCount: number;
 };
 
+let canonicalProductsEnsurePromise: Promise<void> | null = null;
+
 type SubmissionProbeResult = {
   sourceId?: string;
   sourceName?: string;
@@ -98,6 +100,7 @@ export async function upsertSource(input: {
     ? String(matchedExisting.name)
     : input.name;
 
+  const nextUpdatedAt = new Date().toISOString();
   const source: Source = {
     id,
     name: sourceName,
@@ -107,7 +110,7 @@ export async function upsertSource(input: {
     collectorKind: input.collectorKind ?? normalizeCollectorKind(matchedExisting?.collector_kind),
     enabled: input.enabled ?? (matchedExisting ? Boolean(matchedExisting.enabled) : true),
     notes: input.notes || (matchedExisting?.notes ? String(matchedExisting.notes) : null),
-    updatedAt: new Date().toISOString(),
+    updatedAt: nextUpdatedAt,
   };
 
   const row: Record<string, unknown> = {
@@ -121,6 +124,13 @@ export async function upsertSource(input: {
     updated_at: source.updatedAt,
   };
   if (input.collectorKind !== undefined) row.collector_kind = source.collectorKind;
+
+  if (matchedExisting && isSourceRowUnchanged(row, matchedExisting)) {
+    return {
+      ...source,
+      updatedAt: matchedExisting.updated_at ? String(matchedExisting.updated_at) : source.updatedAt,
+    };
+  }
 
   const { error } = await supabase.from("sources").upsert(row);
 
@@ -327,15 +337,21 @@ export async function upsertRawOffers(
 
   const rows = [];
   const collectionMethod = options.collectionMethod || "browser";
+  const sourceCache = new Map<string, Source>();
 
   for (const offer of offers) {
-    const source = await upsertSource({
-      id: offer.sourceId,
-      name: offer.sourceName,
-      entryUrl: offer.sourceUrl,
-      collectionMethod,
-      notes: collectionMethod === "http" ? "由自动价格采集脚本维护。" : "由半自动浏览器采集助手创建。",
-    });
+    const sourceKey = offer.sourceId || `${offer.sourceName}|${offer.sourceUrl}|${collectionMethod}`;
+    let source = sourceCache.get(sourceKey);
+    if (!source) {
+      source = await upsertSource({
+        id: offer.sourceId,
+        name: offer.sourceName,
+        entryUrl: offer.sourceUrl,
+        collectionMethod,
+        notes: collectionMethod === "http" ? "由自动价格采集脚本维护。" : "由半自动浏览器采集助手创建。",
+      });
+      sourceCache.set(sourceKey, source);
+    }
     const normalizedOffer = {
       ...offer,
       sourceName: source.name,
@@ -458,6 +474,42 @@ function comparableValue(value: unknown): string {
   return String(value);
 }
 
+function isSourceRowUnchanged(next: Record<string, unknown>, existing: Record<string, unknown>): boolean {
+  const keys = [
+    "id",
+    "name",
+    "base_url",
+    "entry_url",
+    "collection_method",
+    "enabled",
+    "notes",
+    "collector_kind",
+  ];
+
+  return keys.every((key) => {
+    if (!(key in next) && key === "collector_kind") return true;
+    return comparableValue(next[key]) === comparableValue(existing[key]);
+  });
+}
+
+function isCanonicalProductRowUnchanged(next: Record<string, unknown>, existing?: Record<string, unknown>): boolean {
+  if (!existing) return false;
+
+  const keys = [
+    "id",
+    "slug",
+    "display_name",
+    "platform",
+    "product_type",
+    "spec",
+    "summary",
+    "aliases",
+    "is_active",
+  ];
+
+  return keys.every((key) => comparableValue(next[key]) === comparableValue(existing[key]));
+}
+
 async function getManualHiddenOffer(id: string): Promise<{ lastFailedAt?: string | null; failureReason?: string | null } | null> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return null;
@@ -505,8 +557,17 @@ async function getManualHiddenOffersById(ids: string[]): Promise<Map<string, { l
 }
 
 async function ensureCanonicalProducts(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
-  const { error } = await supabase.from("canonical_products").upsert(
-    canonicalCatalog.map((product) => ({
+  if (canonicalProductsEnsurePromise) return canonicalProductsEnsurePromise;
+
+  canonicalProductsEnsurePromise = ensureCanonicalProductsOnce(supabase).finally(() => {
+    canonicalProductsEnsurePromise = null;
+  });
+
+  return canonicalProductsEnsurePromise;
+}
+
+async function ensureCanonicalProductsOnce(supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>) {
+  const desiredRows = canonicalCatalog.map((product) => ({
       id: product.id,
       slug: product.slug,
       display_name: product.displayName,
@@ -516,9 +577,24 @@ async function ensureCanonicalProducts(supabase: NonNullable<ReturnType<typeof g
       summary: product.summary,
       aliases: product.aliases,
       is_active: true,
+    }));
+
+  const { data, error: readError } = await supabase
+    .from("canonical_products")
+    .select("id,slug,display_name,platform,product_type,spec,summary,aliases,is_active");
+  if (readError) throw readError;
+
+  const existingById = new Map((data || []).map((row) => [String(row.id), row as Record<string, unknown>]));
+  const changedRows = desiredRows
+    .filter((row) => !isCanonicalProductRowUnchanged(row, existingById.get(String(row.id))))
+    .map((row) => ({
+      ...row,
       updated_at: new Date().toISOString(),
-    })),
-  );
+    }));
+
+  if (!changedRows.length) return;
+
+  const { error } = await supabase.from("canonical_products").upsert(changedRows);
 
   if (error) throw error;
 }
@@ -534,7 +610,7 @@ export async function recordSourceCollectionResult(input: {
   message?: string | null;
   seenOfferIds?: string[];
   fullSnapshot?: boolean;
-}) {
+}): Promise<{ changedOfferCount: number }> {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error("Supabase 尚未配置，无法记录来源采集状态。");
 
@@ -547,7 +623,7 @@ export async function recordSourceCollectionResult(input: {
   // Skip failure if another channel succeeded recently (within 1 hour)
   if (input.status === "failed" && existing?.last_success_at) {
     const ageMs = Date.now() - new Date(existing.last_success_at).getTime();
-    if (ageMs < 60 * 60 * 1000) return;
+    if (ageMs < 60 * 60 * 1000) return { changedOfferCount: 0 };
   }
 
   const previousFailures = Number(existing?.consecutive_failures || 0);
@@ -576,15 +652,17 @@ export async function recordSourceCollectionResult(input: {
   if (sourceError) throw sourceError;
 
   if (input.status === "failed") {
-    await recordOfferCollectionFailure(input.sourceId, input.checkedAt, input.message || null, consecutiveFailures);
-    return;
+    const changedOfferCount = await recordOfferCollectionFailure(input.sourceId, input.checkedAt, input.message || null, consecutiveFailures);
+    return { changedOfferCount };
   }
 
-  await clearOfferCollectionFailure(input.sourceId);
+  let changedOfferCount = await clearOfferCollectionFailure(input.sourceId);
 
   if (input.status === "success" && input.fullSnapshot && input.seenOfferIds?.length) {
-    await hideMissingOffersAsDelisted(input.sourceId, input.seenOfferIds, input.checkedAt);
+    changedOfferCount += await hideMissingOffersAsDelisted(input.sourceId, input.seenOfferIds, input.checkedAt);
   }
+
+  return { changedOfferCount };
 }
 
 async function recordOfferCollectionFailure(
@@ -592,27 +670,27 @@ async function recordOfferCollectionFailure(
   failedAt: string,
   message: string | null,
   consecutiveFailures: number,
-) {
+): Promise<number> {
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) return 0;
 
   const failureReason = message || "本次采集失败，旧报价暂不更新。";
-  const { error: markError } = await supabase
+  const { count: markedCount, error: markError } = await supabase
     .from("raw_offers")
     .update({
       last_failed_at: failedAt,
       failure_reason: failureReason,
       updated_at: failedAt,
-    })
+    }, { count: "exact" })
     .eq("source_id", sourceId)
     .or(`failure_reason.is.null,failure_reason.not.ilike.${ADMIN_MANUAL_HIDE_REASON_PREFIX}%`);
 
   if (markError) throw markError;
 
   const staleBefore = new Date(new Date(failedAt).getTime() - 24 * 60 * 60 * 1000).toISOString();
-  if (consecutiveFailures < 3) return;
+  if (consecutiveFailures < 3) return markedCount || 0;
 
-  const { error: expireError } = await supabase
+  const { count: expiredCount, error: expireError } = await supabase
     .from("raw_offers")
     .update({
       effective_status: "unavailable",
@@ -620,34 +698,36 @@ async function recordOfferCollectionFailure(
       last_failed_at: failedAt,
       failure_reason: `连续采集失败 ${consecutiveFailures} 次：${failureReason}`,
       updated_at: failedAt,
-    })
+    }, { count: "exact" })
     .eq("source_id", sourceId)
     .or(`failure_reason.is.null,failure_reason.not.ilike.${ADMIN_MANUAL_HIDE_REASON_PREFIX}%`)
     .or(`verified_at.is.null,verified_at.lt.${staleBefore}`);
 
   if (expireError) throw expireError;
+  return (markedCount || 0) + (expiredCount || 0);
 }
 
-async function clearOfferCollectionFailure(sourceId: string) {
+async function clearOfferCollectionFailure(sourceId: string): Promise<number> {
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) return 0;
 
-  const { error } = await supabase
+  const { count, error } = await supabase
     .from("raw_offers")
     .update({
       last_failed_at: null,
       failure_reason: null,
-    })
+    }, { count: "exact" })
     .eq("source_id", sourceId)
     .or("last_failed_at.not.is.null,failure_reason.not.is.null")
     .or(`failure_reason.is.null,failure_reason.not.ilike.${ADMIN_MANUAL_HIDE_REASON_PREFIX}%`);
 
   if (error) throw error;
+  return count || 0;
 }
 
-async function hideMissingOffersAsDelisted(sourceId: string, seenOfferIds: string[], checkedAt: string) {
+async function hideMissingOffersAsDelisted(sourceId: string, seenOfferIds: string[], checkedAt: string): Promise<number> {
   const supabase = getSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) return 0;
 
   const seen = new Set(seenOfferIds);
   const { data, error } = await supabase
@@ -662,8 +742,9 @@ async function hideMissingOffersAsDelisted(sourceId: string, seenOfferIds: strin
     .map((row) => String(row.id))
     .filter((id) => !seen.has(id));
 
+  let changedCount = 0;
   for (const ids of chunks(missingIds, 100)) {
-    const { error: updateError } = await supabase
+    const { count, error: updateError } = await supabase
       .from("raw_offers")
       .update({
         hidden: true,
@@ -675,11 +756,14 @@ async function hideMissingOffersAsDelisted(sourceId: string, seenOfferIds: strin
         last_failed_at: null,
         failure_reason: "完整采集未再返回该商品，疑似已下架；如源站后续重新返回会自动恢复展示。",
         updated_at: checkedAt,
-      })
+      }, { count: "exact" })
       .in("id", ids);
 
     if (updateError) throw updateError;
+    changedCount += count || 0;
   }
+
+  return changedCount;
 }
 
 function chunks<T>(items: T[], size: number): T[][] {

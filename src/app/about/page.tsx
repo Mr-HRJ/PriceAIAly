@@ -17,8 +17,7 @@ import { platformOptions } from "@/lib/catalog";
 import { getExplorerData } from "@/lib/data";
 import type { ExplorerProductSummary } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "PriceAI 是什么",
