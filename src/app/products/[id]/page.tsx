@@ -5,7 +5,7 @@ import { BrandIcon } from "@/components/BrandIcon";
 import { ProductDetailHeader, ProductReturnLink } from "@/components/ProductDetailHeader";
 import { ProductOffersPanel } from "@/components/ProductOffersPanel";
 import { canonicalCatalog } from "@/lib/catalog";
-import { getPublicProductSummary } from "@/lib/data";
+import { getPublicProductSummary, listPublicProductOffers } from "@/lib/data";
 import {
   getOfficialPricePlanSummaryFromDataset,
   getOfficialPriceRowsByIdFromDataset,
@@ -44,8 +44,9 @@ export default async function ProductDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [product, officialPricesDataset] = await Promise.all([
+  const [product, initialOffers, officialPricesDataset] = await Promise.all([
     getPublicProductSummary(id),
+    listPublicProductOffers(id, { limit: 80, offset: 0 }),
     getOfficialPricesDataset(),
   ]);
 
@@ -98,6 +99,7 @@ export default async function ProductDetail({
           productSlug={product.slug}
           productName={product.displayName}
           initialCount={product.offerCount}
+          initialData={initialOffers}
         />
 
         <p className="mt-8 text-xs leading-6 text-[#5a6061]">
