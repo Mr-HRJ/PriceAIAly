@@ -471,6 +471,18 @@ export type OfferFeedbackReason =
   | "wrong_category"
   | "bad_source"
   | "other";
+export type OfferFeedbackUserExpectedAction =
+  | "recheck"
+  | "hide_offer"
+  | "hide_source"
+  | "unsure";
+export type OfferFeedbackSuggestedAction =
+  | "recollect"
+  | "reclassify"
+  | "hide_offer"
+  | "hide_source"
+  | "todo"
+  | "ignore";
 export type SiteFeedbackType =
   | "feature"
   | "data"
@@ -512,6 +524,11 @@ export type OfferFeedback = {
   offerSourceUpdatedAt: string | null;
   offerLastSeenAt: string | null;
   reason: OfferFeedbackReason;
+  userExpectedAction: OfferFeedbackUserExpectedAction;
+  suggestedAction: OfferFeedbackSuggestedAction;
+  evidenceText: string | null;
+  evidenceUrls: string[];
+  aiReviewResult: Record<string, unknown> | null;
   notes: string | null;
   contact: string | null;
   status: OfferFeedbackStatus;

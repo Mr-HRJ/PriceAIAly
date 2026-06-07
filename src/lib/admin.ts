@@ -15,7 +15,9 @@ import type {
   OfferInput,
   OfferFeedback,
   OfferFeedbackReason,
+  OfferFeedbackSuggestedAction,
   OfferFeedbackStatus,
+  OfferFeedbackUserExpectedAction,
   OfferStatus,
   RawOffer,
   SiteFeedback,
@@ -882,6 +884,8 @@ function mapSubmissionRow(row: Record<string, unknown>): ChannelSubmission {
 }
 
 function mapOfferFeedbackRow(row: Record<string, unknown>): OfferFeedback {
+  const reason = String(row.reason || "other") as OfferFeedbackReason;
+
   return {
     id: String(row.id),
     productId: row.product_id ? String(row.product_id) : null,
@@ -898,7 +902,12 @@ function mapOfferFeedbackRow(row: Record<string, unknown>): OfferFeedback {
     offerCapturedAt: row.offer_captured_at ? String(row.offer_captured_at) : null,
     offerSourceUpdatedAt: row.offer_source_updated_at ? String(row.offer_source_updated_at) : null,
     offerLastSeenAt: row.offer_last_seen_at ? String(row.offer_last_seen_at) : null,
-    reason: String(row.reason || "other") as OfferFeedbackReason,
+    reason,
+    userExpectedAction: normalizeOfferFeedbackUserExpectedAction(row.user_expected_action),
+    suggestedAction: normalizeOfferFeedbackSuggestedAction(row.suggested_action, reason),
+    evidenceText: row.evidence_text ? String(row.evidence_text) : null,
+    evidenceUrls: parseFeedbackEvidenceUrls(row.evidence_urls),
+    aiReviewResult: row.ai_review_result && typeof row.ai_review_result === "object" ? row.ai_review_result as Record<string, unknown> : null,
     notes: row.notes ? String(row.notes) : null,
     contact: row.contact ? String(row.contact) : null,
     status: String(row.status || "pending") as OfferFeedbackStatus,
@@ -907,6 +916,72 @@ function mapOfferFeedbackRow(row: Record<string, unknown>): OfferFeedback {
     createdAt: String(row.created_at || new Date().toISOString()),
     reviewedAt: row.reviewed_at ? String(row.reviewed_at) : null,
   };
+}
+
+function normalizeOfferFeedbackUserExpectedAction(value: unknown): OfferFeedbackUserExpectedAction {
+  return value === "hide_offer" || value === "hide_source" || value === "unsure" || value === "recheck"
+    ? value
+    : "recheck";
+}
+
+function normalizeOfferFeedbackSuggestedAction(value: unknown, reason: OfferFeedbackReason): OfferFeedbackSuggestedAction {
+  if (
+    value === "recollect" ||
+    value === "reclassify" ||
+    value === "hide_offer" ||
+    value === "hide_source" ||
+    value === "todo" ||
+    value === "ignore"
+  ) {
+    return value;
+  }
+
+  return inferOfferFeedbackSuggestedAction(reason);
+}
+
+function inferOfferFeedbackSuggestedAction(reason: OfferFeedbackReason): OfferFeedbackSuggestedAction {
+  if (reason === "wrong_price" || reason === "stock_mismatch") return "recollect";
+  if (reason === "item_removed" || reason === "fraud") return "hide_offer";
+  if (reason === "bad_source") return "hide_source";
+  if (reason === "wrong_category") return "reclassify";
+  return "todo";
+}
+
+function parseFeedbackEvidenceUrls(value: unknown): string[] {
+  const items = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? tryParseJsonArray(value)
+      : [];
+
+  return items
+    .map((item) => typeof item === "string" ? item.trim() : "")
+    .filter((item) => item.length > 0)
+    .slice(0, 10);
+}
+
+function sanitizeFeedbackEvidenceUrls(value: string[]): string[] {
+  return value
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .filter((item) => {
+      try {
+        const url = new URL(item);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 10);
+}
+
+function tryParseJsonArray(value: string): unknown[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function mapSiteFeedbackRow(row: Record<string, unknown>): SiteFeedback {
@@ -1557,6 +1632,10 @@ export async function createOfferFeedback(input: {
   offerSourceUpdatedAt?: string | null;
   offerLastSeenAt?: string | null;
   reason: OfferFeedbackReason;
+  userExpectedAction?: OfferFeedbackUserExpectedAction | null;
+  suggestedAction?: OfferFeedbackSuggestedAction | null;
+  evidenceText?: string | null;
+  evidenceUrls?: string[] | null;
   notes?: string | null;
   contact?: string | null;
   submitterIp?: string | null;
@@ -1595,6 +1674,10 @@ export async function createOfferFeedback(input: {
   }
 
   const id = stableId("offer-feedback", input.offerId || "", input.reason, ip || "", Date.now().toString());
+  const userExpectedAction = normalizeOfferFeedbackUserExpectedAction(input.userExpectedAction);
+  const suggestedAction = input.suggestedAction
+    ? normalizeOfferFeedbackSuggestedAction(input.suggestedAction, input.reason)
+    : inferOfferFeedbackSuggestedAction(input.reason);
   const { error } = await supabase.from("offer_feedback").insert({
     id,
     product_id: input.productId || null,
@@ -1612,6 +1695,10 @@ export async function createOfferFeedback(input: {
     offer_source_updated_at: input.offerSourceUpdatedAt || null,
     offer_last_seen_at: input.offerLastSeenAt || null,
     reason: input.reason,
+    user_expected_action: userExpectedAction,
+    suggested_action: suggestedAction,
+    evidence_text: input.evidenceText?.trim() || null,
+    evidence_urls: sanitizeFeedbackEvidenceUrls(input.evidenceUrls || []),
     notes: input.notes?.trim() || null,
     contact: input.contact?.trim() || null,
     status: "pending",

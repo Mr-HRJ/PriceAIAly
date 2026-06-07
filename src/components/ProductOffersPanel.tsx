@@ -407,7 +407,9 @@ export function OfferFeedbackDialog({
   onClose: () => void;
 }) {
   const [reason, setReason] = useState("wrong_price");
+  const [userExpectedAction, setUserExpectedAction] = useState("recheck");
   const [notes, setNotes] = useState("");
+  const [evidenceText, setEvidenceText] = useState("");
   const [contact, setContact] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -437,6 +439,9 @@ export function OfferFeedbackDialog({
           offerSourceUpdatedAt: offer.sourceUpdatedAt || null,
           offerLastSeenAt: offer.lastSeenAt || null,
           reason,
+          userExpectedAction,
+          evidenceText: evidenceText || null,
+          evidenceUrls: extractEvidenceUrls(evidenceText),
           notes: notes || null,
           contact: contact || null,
           website: "",
@@ -486,6 +491,18 @@ export function OfferFeedbackDialog({
             </select>
           </label>
           <label className="block">
+            <span className="mb-1 block text-xs font-medium text-[#5a6061]">希望处理方式</span>
+            <select
+              value={userExpectedAction}
+              onChange={(event) => setUserExpectedAction(event.target.value)}
+              className="h-10 w-full rounded-lg border border-[#adb3b4]/40 bg-white px-3 text-sm outline-none transition focus:border-[#2d3435]"
+            >
+              {expectedActionOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
             <span className="mb-1 block text-xs font-medium text-[#5a6061]">补充说明</span>
             <textarea
               value={notes}
@@ -493,6 +510,17 @@ export function OfferFeedbackDialog({
               rows={3}
               maxLength={500}
               placeholder="例如：点进去实际价格是 1280，或原站已下架。"
+              className="w-full resize-y rounded-lg border border-[#adb3b4]/40 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2d3435]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-[#5a6061]">证据链接或说明（可选）</span>
+            <textarea
+              value={evidenceText}
+              onChange={(event) => setEvidenceText(event.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="可粘贴截图链接、订单页、聊天记录链接，或说明你看到的证据。"
               className="w-full resize-y rounded-lg border border-[#adb3b4]/40 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2d3435]"
             />
           </label>
@@ -538,6 +566,18 @@ const feedbackReasonOptions = [
   { value: "bad_source", label: "渠道不可信" },
   { value: "other", label: "其他问题" },
 ];
+
+const expectedActionOptions = [
+  { value: "recheck", label: "请重新核查" },
+  { value: "hide_offer", label: "建议下架这条报价" },
+  { value: "hide_source", label: "建议下架整个渠道" },
+  { value: "unsure", label: "不确定，交给管理员判断" },
+];
+
+function extractEvidenceUrls(value: string): string[] {
+  const matches = value.match(/https?:\/\/[^\s"'<>，。；、]+/g) || [];
+  return Array.from(new Set(matches)).slice(0, 10);
+}
 
 function Skeleton({ className }: { className: string }) {
   return <div className={`bg-[#e4e9ea] ${className}`} />;

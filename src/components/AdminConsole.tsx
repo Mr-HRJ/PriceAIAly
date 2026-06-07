@@ -3092,6 +3092,7 @@ function OfferFeedbackList({
           ? [matchedProduct.platform, matchedProduct.productType, matchedProduct.spec].filter(Boolean).join(" / ")
           : item.productSlug || item.productId || "未匹配到当前标准商品";
         const isLegacyCategoryFeedback = item.reason === "wrong_category";
+        const hasEvidence = Boolean(item.evidenceText || item.evidenceUrls.length);
 
         return (
           <article key={item.id} className="rounded-lg border border-[#adb3b4]/20 bg-white p-4 shadow-[0_12px_34px_rgba(45,52,53,0.035)]">
@@ -3100,6 +3101,12 @@ function OfferFeedbackList({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${feedbackReasonClass(item.reason)}`}>
                     {feedbackReasonLabel(item.reason)}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${feedbackActionClass(item.suggestedAction)}`}>
+                    建议：{feedbackSuggestedActionLabel(item.suggestedAction)}
+                  </span>
+                  <span className="rounded-full bg-[#eef3f8] px-2 py-0.5 text-xs font-semibold text-[#47657a]">
+                    用户希望：{feedbackUserExpectedActionLabel(item.userExpectedAction)}
                   </span>
                   <span className="text-xs text-[#adb3b4]">{formatRelativeTime(item.createdAt)}</span>
                 </div>
@@ -3142,6 +3149,28 @@ function OfferFeedbackList({
                     {item.notes}
                   </p>
                 ) : null}
+                {hasEvidence ? (
+                  <div className="mt-2 rounded-lg bg-[#eef3f8] px-3 py-2 text-xs leading-5 text-[#47657a]">
+                    <p className="font-semibold text-[#2d3435]">证据</p>
+                    {item.evidenceText ? <p className="mt-1 whitespace-pre-wrap break-words">{item.evidenceText}</p> : null}
+                    {item.evidenceUrls.length ? (
+                      <div className="mt-1 space-y-1">
+                        {item.evidenceUrls.map((url) => (
+                          <a
+                            key={url}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex max-w-full items-center gap-1 break-all text-[#47657a] hover:text-[#2d3435]"
+                          >
+                            <span className="break-all">{url}</span>
+                            <ExternalLink size={12} className="shrink-0" />
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {isLegacyCategoryFeedback ? (
                   <p className="mt-2 rounded-lg bg-[#eef3f8] px-3 py-2 text-xs leading-5 text-[#47657a]">
                     这是历史分类反馈。分类问题后续走分类规则和模型辅助归类流程，这里建议标记已处理或忽略。
@@ -3162,7 +3191,11 @@ function OfferFeedbackList({
                   type="button"
                   disabled={isLegacyCategoryFeedback || !item.offerId || hideOfferLoading}
                   onClick={() => onHideOffer(item)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#9b3328]/20 bg-white px-3 text-xs font-medium text-[#9b3328] transition-colors hover:bg-[#fbe9e7] disabled:opacity-50"
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                    item.suggestedAction === "hide_offer"
+                      ? "border-[#9b3328]/30 bg-[#fbe9e7] text-[#9b3328] hover:bg-[#f6d6d2]"
+                      : "border-[#9b3328]/20 bg-white text-[#9b3328] hover:bg-[#fbe9e7]"
+                  }`}
                 >
                   {hideOfferLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                   下架报价
@@ -3171,7 +3204,11 @@ function OfferFeedbackList({
                   type="button"
                   disabled={isLegacyCategoryFeedback || !item.sourceId || hideSourceLoading}
                   onClick={() => onHideSource(item)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#9b3328]/20 bg-white px-3 text-xs font-medium text-[#9b3328] transition-colors hover:bg-[#fbe9e7] disabled:opacity-50"
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                    item.suggestedAction === "hide_source"
+                      ? "border-[#9b3328]/30 bg-[#fbe9e7] text-[#9b3328] hover:bg-[#f6d6d2]"
+                      : "border-[#9b3328]/20 bg-white text-[#9b3328] hover:bg-[#fbe9e7]"
+                  }`}
                 >
                   {hideSourceLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                   下架渠道
@@ -5591,6 +5628,35 @@ function feedbackReasonClass(value: OfferFeedback["reason"]): string {
   if (value === "fraud" || value === "bad_source") return "bg-[#fbe9e7] text-[#9b3328]";
   if (value === "wrong_price" || value === "stock_mismatch" || value === "item_removed") return "bg-[#fff7e8] text-[#7a541b]";
   if (value === "wrong_category") return "bg-[#eef3f8] text-[#47657a]";
+  return "bg-[#f2f4f4] text-[#5a6061]";
+}
+
+function feedbackUserExpectedActionLabel(value: OfferFeedback["userExpectedAction"]): string {
+  const labels: Record<OfferFeedback["userExpectedAction"], string> = {
+    recheck: "重新核查",
+    hide_offer: "下架报价",
+    hide_source: "下架渠道",
+    unsure: "管理员判断",
+  };
+  return labels[value] || "重新核查";
+}
+
+function feedbackSuggestedActionLabel(value: OfferFeedback["suggestedAction"]): string {
+  const labels: Record<OfferFeedback["suggestedAction"], string> = {
+    recollect: "重新采集",
+    reclassify: "重建分类",
+    hide_offer: "下架报价",
+    hide_source: "下架渠道",
+    todo: "转待办",
+    ignore: "忽略",
+  };
+  return labels[value] || "转待办";
+}
+
+function feedbackActionClass(value: OfferFeedback["suggestedAction"]): string {
+  if (value === "hide_offer" || value === "hide_source") return "bg-[#fbe9e7] text-[#9b3328]";
+  if (value === "recollect" || value === "reclassify") return "bg-[#fff7e8] text-[#7a541b]";
+  if (value === "todo") return "bg-[#eef3f8] text-[#47657a]";
   return "bg-[#f2f4f4] text-[#5a6061]";
 }
 

@@ -603,6 +603,11 @@ create table if not exists offer_feedback (
   offer_source_updated_at timestamptz,
   offer_last_seen_at timestamptz,
   reason text not null,
+  user_expected_action text not null default 'recheck',
+  suggested_action text not null default 'recollect',
+  evidence_text text,
+  evidence_urls jsonb not null default '[]'::jsonb,
+  ai_review_result jsonb,
   notes text,
   contact text,
   status text not null default 'pending',
@@ -616,6 +621,7 @@ create index if not exists offer_feedback_status_idx on offer_feedback(status);
 create index if not exists offer_feedback_created_at_idx on offer_feedback(created_at desc);
 create index if not exists offer_feedback_offer_id_idx on offer_feedback(offer_id);
 create index if not exists offer_feedback_source_id_idx on offer_feedback(source_id);
+create index if not exists offer_feedback_suggested_action_idx on offer_feedback(suggested_action);
 
 alter table offer_feedback enable row level security;
 

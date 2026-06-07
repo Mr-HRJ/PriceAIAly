@@ -9,6 +9,7 @@ const reasonSchema = z.enum([
   "bad_source",
   "other",
 ]);
+const userExpectedActionSchema = z.enum(["recheck", "hide_offer", "hide_source", "unsure"]);
 
 const schema = z.object({
   productId: z.string().max(200).nullable().optional(),
@@ -26,6 +27,9 @@ const schema = z.object({
   offerSourceUpdatedAt: z.string().max(100).nullable().optional(),
   offerLastSeenAt: z.string().max(100).nullable().optional(),
   reason: reasonSchema,
+  userExpectedAction: userExpectedActionSchema.nullable().optional(),
+  evidenceText: z.string().trim().max(1000).nullable().optional(),
+  evidenceUrls: z.array(z.string().url().max(2048)).max(10).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
   contact: z.string().trim().max(200).nullable().optional(),
   website: z.string().max(200).nullable().optional(),
@@ -74,6 +78,9 @@ export async function POST(request: Request) {
       offerSourceUpdatedAt: payload.offerSourceUpdatedAt || null,
       offerLastSeenAt: payload.offerLastSeenAt || null,
       reason: payload.reason,
+      userExpectedAction: payload.userExpectedAction || "recheck",
+      evidenceText: payload.evidenceText || null,
+      evidenceUrls: payload.evidenceUrls || [],
       notes: payload.notes || null,
       contact: payload.contact || null,
       submitterIp: getClientIp(request),
