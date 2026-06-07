@@ -274,7 +274,18 @@ export default async function AboutPage() {
                 我们会先用 ChatGPT 建立平台页和新手指南模板：解释商品类型、展示当前价格摘要，再把用户带回比价工具。
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Link
+                href="/guides/why-ai-subscription-prices-differ"
+                className="rounded-lg bg-[#f2f4f4] p-5 transition hover:-translate-y-0.5 hover:bg-[#ebeeef]"
+              >
+                <span className="text-sm font-semibold text-[#202829]">AI 订阅价格分层指南</span>
+                <span className="mt-2 block text-sm leading-6 text-[#5a6061]">先理解官网正价、地区价、代充价和第三方渠道价。</span>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#2d3435]">
+                  阅读指南
+                  <ArrowRight size={15} />
+                </span>
+              </Link>
               <Link
                 href="/platforms/chatgpt"
                 className="rounded-lg bg-[#f2f4f4] p-5 transition hover:-translate-y-0.5 hover:bg-[#ebeeef]"

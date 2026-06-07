@@ -50,6 +50,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.72,
     },
+    {
+      url: `${siteUrl}/guides/why-ai-subscription-prices-differ`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.74,
+    },
   ];
 
   const productRoutes: MetadataRoute.Sitemap = data.products.map((product) => ({

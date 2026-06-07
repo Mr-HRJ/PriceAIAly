@@ -20,6 +20,7 @@ GitHub: https://github.com/physics-dimension/PriceAI
 - API model radar: https://priceai.cc/api-models
 - ChatGPT platform page: https://priceai.cc/platforms/chatgpt
 - ChatGPT subscription guide: https://priceai.cc/guides/chatgpt-subscription-options
+- AI subscription price layers guide: https://priceai.cc/guides/why-ai-subscription-prices-differ
 - Product detail pages: https://priceai.cc/products/
 - Sitemap: https://priceai.cc/sitemap.xml
 
@@ -30,6 +31,8 @@ PriceAI does not sell AI subscriptions, does not process payments, and does not 
 PriceAI displays price, stock status, source title, source link, source/channel name, and update time when available. Prices and stock can change. The final price, delivery method, stock, warranty, and after-sales policy are determined by the original platform.
 
 Lowest prices on public product lists are intended to use available offers. Out-of-stock or hidden offers should not be treated as currently purchasable lowest prices.
+
+AI subscription prices should be understood as a layered market: official baseline prices, official regional/qualification/promotional prices, third-party assisted subscription or top-up service prices, and third-party account/entitlement/special-channel prices. PriceAI may explain that bug-like or unusually cheap channels exist, but it does not provide methods to obtain or exploit them and does not present them as stable purchase paths.
 
 ## API Boundary
 

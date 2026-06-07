@@ -214,20 +214,29 @@ export default async function ChatGptPlatformPage() {
             </div>
           </section>
 
-          <section className="mt-12 flex flex-col gap-4 rounded-lg bg-[#f2f4f4] p-6 ring-1 ring-[#adb3b4]/15 sm:flex-row sm:items-center sm:justify-between">
+          <section className="mt-12 flex flex-col gap-4 rounded-lg bg-[#f2f4f4] p-6 ring-1 ring-[#adb3b4]/15 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="font-serif text-2xl font-semibold tracking-normal text-[#202829]">第一次买 ChatGPT 订阅？</h2>
               <p className="mt-2 text-sm leading-6 text-[#5a6061]">
-                先读一遍获取方式，再回到工具里看具体报价。
+                可以先理解价格为什么会分层，再看 ChatGPT 的具体获取方式。
               </p>
             </div>
-            <Link
-              href="/guides/chatgpt-subscription-options"
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#2d3435] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#202829]"
-            >
-              查看新手指南
-              <ArrowRight size={16} />
-            </Link>
+            <div className="flex shrink-0 flex-wrap gap-3">
+              <Link
+                href="/guides/why-ai-subscription-prices-differ"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#dde4e5] px-5 text-sm font-semibold text-[#2d3435] transition hover:bg-[#d3dcdd]"
+              >
+                为什么价格不同
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/guides/chatgpt-subscription-options"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2d3435] px-5 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#202829]"
+              >
+                查看新手指南
+                <ArrowRight size={16} />
+              </Link>
+            </div>
           </section>
         </div>
       </main>
