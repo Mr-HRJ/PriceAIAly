@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 export default function GooglePlayAiSubscriptionGuide() {
   return (
     <SeoGuidePage
+      currentHref="/guides/google-play-ai-subscription"
       eyebrow="Google Play 专题"
       icon={<Smartphone size={15} />}
       title="Google Play 订阅 AI 怎么理解？"

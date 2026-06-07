@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 export default function VisaCardForAiSubscriptionGuide() {
   return (
     <SeoGuidePage
+      currentHref="/guides/visa-card-for-ai-subscription"
       eyebrow="支付卡专题"
       icon={<CreditCard size={15} />}
       title="订阅 AI 需要什么支付卡？"

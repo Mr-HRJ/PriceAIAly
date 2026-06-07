@@ -116,3 +116,30 @@ export const guideEntries: GuideEntry[] = [
 export function getGuideCategory(id: GuideCategoryId) {
   return guideCategories.find((category) => category.id === id);
 }
+
+export function getGuideEntry(href: string) {
+  return guideEntries.find((guide) => guide.href === href);
+}
+
+export function getRelatedGuides(currentHref: string, limit = 3) {
+  const current = getGuideEntry(currentHref);
+
+  if (!current) {
+    return guideEntries.filter((guide) => guide.href !== currentHref).slice(0, limit);
+  }
+
+  return guideEntries
+    .filter((guide) => guide.href !== currentHref)
+    .map((guide) => {
+      const sharedTags = guide.tags.filter((tag) => current.tags.includes(tag)).length;
+      const categoryScore = guide.categoryId === current.categoryId ? 3 : 0;
+
+      return {
+        guide,
+        score: categoryScore + sharedTags,
+      };
+    })
+    .sort((a, b) => b.score - a.score || guideEntries.indexOf(a.guide) - guideEntries.indexOf(b.guide))
+    .map((item) => item.guide)
+    .slice(0, limit);
+}

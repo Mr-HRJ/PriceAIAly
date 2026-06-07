@@ -14,6 +14,7 @@ import {
   Store,
 } from "lucide-react";
 import Link from "next/link";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -226,6 +227,8 @@ export default function AreAiSubscriptionCardShopsReliableGuide() {
               </Link>
             </div>
           </section>
+
+          <GuideReadingFooter currentHref="/guides/are-ai-subscription-card-shops-reliable" />
         </article>
       </main>
     </>

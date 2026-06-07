@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowRight, CheckCircle2, ExternalLink, ShieldAlert } from "lucide-react";
 import Link from "next/link";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -24,6 +25,7 @@ export type GuideLink = {
 };
 
 export type SeoGuidePageProps = {
+  currentHref: string;
   eyebrow: string;
   icon?: ReactNode;
   title: string;
@@ -50,6 +52,7 @@ export type SeoGuidePageProps = {
 };
 
 export function SeoGuidePage({
+  currentHref,
   eyebrow,
   icon,
   title,
@@ -183,6 +186,8 @@ export function SeoGuidePage({
               ))}
             </div>
           </section>
+
+          <GuideReadingFooter currentHref={currentHref} />
         </article>
       </main>
     </>

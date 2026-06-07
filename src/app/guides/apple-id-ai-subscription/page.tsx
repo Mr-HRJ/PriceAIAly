@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -258,6 +259,8 @@ export default function AppleIdAiSubscriptionGuide() {
               </Link>
             </div>
           </section>
+
+          <GuideReadingFooter currentHref="/guides/apple-id-ai-subscription" />
         </article>
       </main>
     </>

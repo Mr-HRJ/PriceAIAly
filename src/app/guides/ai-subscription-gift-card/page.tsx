@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 export default function AiSubscriptionGiftCardGuide() {
   return (
     <SeoGuidePage
+      currentHref="/guides/ai-subscription-gift-card"
       eyebrow="礼品卡专题"
       icon={<Gift size={15} />}
       title="AI 订阅礼品卡有什么限制？"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowRight, CheckCircle2, CreditCard, ExternalLink, Gift, HelpCircle, Layers3, ShieldAlert, Tags } from "lucide-react";
 import Link from "next/link";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -206,6 +207,8 @@ export default function WhyAiSubscriptionPricesDifferGuide() {
               </Link>
             </div>
           </section>
+
+          <GuideReadingFooter currentHref="/guides/why-ai-subscription-prices-differ" />
         </article>
       </main>
     </>

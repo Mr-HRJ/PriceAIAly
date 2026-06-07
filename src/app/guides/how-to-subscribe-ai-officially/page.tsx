@@ -15,6 +15,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import Link from "next/link";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -264,6 +265,8 @@ export default function HowToSubscribeAiOfficiallyGuide() {
               </Link>
             </div>
           </section>
+
+          <GuideReadingFooter currentHref="/guides/how-to-subscribe-ai-officially" />
         </article>
       </main>
     </>

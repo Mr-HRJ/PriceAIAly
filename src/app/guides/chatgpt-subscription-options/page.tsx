@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ArrowRight, CheckCircle2, CreditCard, ExternalLink, HelpCircle, Layers3, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { BrandIcon } from "@/components/BrandIcon";
+import { GuideReadingFooter } from "@/components/GuideReadingFooter";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -180,6 +181,8 @@ export default function ChatGptSubscriptionOptionsGuide() {
               </Link>
             </div>
           </section>
+
+          <GuideReadingFooter currentHref="/guides/chatgpt-subscription-options" />
         </article>
       </main>
     </>

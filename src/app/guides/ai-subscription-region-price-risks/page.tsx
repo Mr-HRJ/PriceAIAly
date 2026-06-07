@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 export default function AiSubscriptionRegionPriceRisksGuide() {
   return (
     <SeoGuidePage
+      currentHref="/guides/ai-subscription-region-price-risks"
       eyebrow="地区价风险专题"
       icon={<Globe2 size={15} />}
       title="AI 订阅官方地区价一定稳定吗？"
