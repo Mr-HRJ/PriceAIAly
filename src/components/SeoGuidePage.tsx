@@ -97,7 +97,7 @@ export function SeoGuidePage({
             </div>
 
             <aside className="rounded-lg bg-white p-5 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Quick answer</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">快速结论</p>
               <p className="mt-4 text-sm leading-7 text-[#5a6061]">{quickAnswer}</p>
             </aside>
           </section>

@@ -65,7 +65,7 @@ export default function WhyAiSubscriptionPricesDifferGuide() {
             </div>
 
             <aside className="rounded-lg bg-white p-5 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Quick answer</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">快速结论</p>
               <p className="mt-4 text-sm leading-7 text-[#5a6061]">
                 AI 订阅价格通常不是单一市场。你看到的低价可能来自官方地区差异、资格权益、代订服务、账号库存、卡密/CDK、试用权益，或来源不透明的特殊渠道。
               </p>
@@ -114,7 +114,7 @@ export default function WhyAiSubscriptionPricesDifferGuide() {
           <section className="mt-12">
             <div className="grid gap-5 lg:grid-cols-[0.68fr_1fr]">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Reasons</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">价格原因</p>
                 <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight tracking-normal text-[#202829]">
                   价格差异通常来自这些原因。
                 </h2>

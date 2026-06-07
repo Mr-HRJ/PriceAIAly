@@ -65,7 +65,7 @@ export default function ChatGptSubscriptionOptionsGuide() {
             </div>
 
             <aside className="rounded-lg bg-white p-5 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Quick answer</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">快速结论</p>
               <p className="mt-4 text-sm leading-7 text-[#5a6061]">
                 大体可以先分成三类：官方订阅、第三方渠道、API/CDK。你要的是稳定省心、低价试用，还是把模型接进 Codex、Cursor、OpenCode 这类工具，答案会不一样。
               </p>

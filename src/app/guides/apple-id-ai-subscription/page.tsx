@@ -79,7 +79,7 @@ export default function AppleIdAiSubscriptionGuide() {
             </div>
 
             <aside className="rounded-lg bg-white p-5 shadow-[0_20px_55px_rgba(45,52,53,0.045)] ring-1 ring-[#adb3b4]/15">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">Quick answer</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5a6061]">快速结论</p>
               <p className="mt-4 text-sm leading-7 text-[#5a6061]">
                 Apple ID 不是“低价魔法”。它只是 App Store 内购的账户和地区入口。真正要判断的是：目标 AI App 是否支持内购、该地区是否可买、你是否有可用付款方式或余额，以及后续续费能不能稳定。
               </p>
