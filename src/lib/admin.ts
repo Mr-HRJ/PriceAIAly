@@ -297,7 +297,7 @@ export async function upsertRawOffer(input: OfferInput & { sourceId?: string | n
   const tags = parseTags(input.tags || "");
   const status = normalizeStatus(input.status || "");
   const trustFields = freshnessFields({ method: "manual", status, verifiedAt: now });
-  const canonical = classifyOffer(input.sourceTitle, { tags });
+  const canonical = classifyOffer(input.sourceTitle, { tags, price: input.price ?? null });
   const existingManualHidden = await getManualHiddenOffer(rawOfferInputId(input));
   const offer: RawOffer = {
     id: rawOfferInputId(input),
@@ -367,7 +367,7 @@ export async function upsertRawOffers(
     const now = new Date().toISOString();
     const status = normalizeStatus(offer.status || "");
     const tags = parseTags(offer.tags || "");
-    const canonical = classifyOffer(offer.sourceTitle, { tags });
+    const canonical = classifyOffer(offer.sourceTitle, { tags, price: offer.price ?? null });
     const trustFields = freshnessFields({ method: collectionMethod, status, verifiedAt: now });
 
     rows.push(

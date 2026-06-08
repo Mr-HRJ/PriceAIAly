@@ -420,6 +420,24 @@ const legacyCanonicalIdMap: Record<string, string> = {
   "other-tool-account": "other-tool-account",
 };
 
+type OfferClassificationContext = {
+  tags?: string[] | string | null;
+  categorySlug?: string | null;
+  price?: number | null;
+};
+
+const priceFloorByProductId = new Map<string, number>([
+  ["chatgpt-plus-recharge", 50],
+  ["chatgpt-pro-5x", 100],
+  ["chatgpt-pro-20x", 200],
+  ["claude-pro-month", 40],
+  ["claude-team-standard", 100],
+  ["claude-team-premium", 200],
+  ["claude-max-5x", 100],
+  ["claude-max-20x", 200],
+  ["gemini-ultra", 200],
+]);
+
 export function getCanonicalProduct(id: string): CanonicalProduct {
   return catalogById.get(legacyCanonicalIdMap[id] || id) ?? catalogById.get("other-product")!;
 }
@@ -429,10 +447,13 @@ export function resolveOfferProduct(
   canonicalProducts: CanonicalProduct[] = canonicalCatalog,
 ): CanonicalProduct {
   const canonicalMap = new Map(canonicalProducts.map((product) => [product.id, product]));
-  const classified = classifyOffer(offer.sourceTitle, { tags: offer.tags, categorySlug: offer.categorySlug });
+  const context = { tags: offer.tags, categorySlug: offer.categorySlug };
+  const titleClassified = classifyOfferByTitle(offer.sourceTitle, context);
+  const classified = applyPriceFloor(titleClassified, offer.price);
   const mappedId = offer.canonicalProductId ? legacyCanonicalIdMap[offer.canonicalProductId] || offer.canonicalProductId : null;
 
   if (classified.id !== "other-product") return classified;
+  if (titleClassified.id !== "other-product") return classified;
   if (mappedId && catalogById.has(mappedId)) return getCanonicalProduct(mappedId);
   if (mappedId && canonicalMap.has(mappedId)) return canonicalMap.get(mappedId)!;
 
@@ -441,10 +462,14 @@ export function resolveOfferProduct(
 
 export function classifyOffer(
   title: string,
-  context: {
-    tags?: string[] | string | null;
-    categorySlug?: string | null;
-  } = {},
+  context: OfferClassificationContext = {},
+): CanonicalProduct {
+  return applyPriceFloor(classifyOfferByTitle(title, context), context.price);
+}
+
+function classifyOfferByTitle(
+  title: string,
+  context: OfferClassificationContext = {},
 ): CanonicalProduct {
   const value = normalizeTitle(title);
   const contextValue = normalizeTitle([normalizeTags(context.tags), context.categorySlug].filter(Boolean).join(" "));
@@ -593,6 +618,14 @@ export function classifyOffer(
   }
 
   return getCanonicalProduct("other-product");
+}
+
+function applyPriceFloor(product: CanonicalProduct, price: number | null | undefined): CanonicalProduct {
+  const floor = priceFloorByProductId.get(product.id);
+  if (floor === undefined) return product;
+  if (typeof price !== "number" || !Number.isFinite(price)) return product;
+
+  return price < floor ? getCanonicalProduct("other-product") : product;
 }
 
 export function buildProductGroups(

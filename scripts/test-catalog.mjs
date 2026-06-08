@@ -103,6 +103,39 @@ for (const [title, expected] of cases) {
   assert.equal(classifyOffer(title).id, expected, `${title} should classify as ${expected}`);
 }
 
+const priceCases = [
+  ["GPT PRO 特价代充 5x", 99, "other-product"],
+  ["GPT PRO 特价代充 5x", 100, "chatgpt-pro-5x"],
+  ["ChatGPT Pro 20x 官方充值", 199, "other-product"],
+  ["ChatGPT Pro 20x 官方充值", 200, "chatgpt-pro-20x"],
+  ["Claude Max 5X直充月卡", 99, "other-product"],
+  ["Claude Max 5X直充月卡", 100, "claude-max-5x"],
+  ["Claude Max 20X 成品号", 199, "other-product"],
+  ["Claude Max 20X 成品号", 200, "claude-max-20x"],
+  ["Claude Team 1.25x 30天质保订阅", 99, "other-product"],
+  ["Claude Team 1.25x 30天质保订阅", 100, "claude-team-standard"],
+  ["Claude Team 6.25x 30天质保订阅", 199, "other-product"],
+  ["Claude Team 6.25x 30天质保订阅", 200, "claude-team-premium"],
+  ["Google AI Ultra 250美元 Flow 积分", 199, "other-product"],
+  ["Google AI Ultra 250美元 Flow 积分", 200, "gemini-ultra"],
+  ["ChatGPT自助卡密（ios土区）", 49, "other-product"],
+  ["ChatGPT自助卡密（ios土区）", 50, "chatgpt-plus-recharge"],
+  ["Claude Pro 月卡 直充", 39, "other-product"],
+  ["Claude Pro 月卡 直充", 40, "claude-pro-month"],
+  ["ChatGPT Plus 直充 卡密自助", 3, "chatgpt-plus"],
+  ["GPT Team成品 rt子号 | 质保首次登录 发json cpa格式", 0.3, "chatgpt-team-business"],
+  ["Gemini Pro 一年 12个月", 1, "gemini-pro-year"],
+  ["Super Grok 成品号-3天（质保）-带sso", 1, "super-grok"],
+];
+
+for (const [title, price, expected] of priceCases) {
+  assert.equal(
+    classifyOffer(title, { price }).id,
+    expected,
+    `${title} at ¥${price} should classify as ${expected}`,
+  );
+}
+
 const groups = buildProductGroups([
   makeOffer({ id: "available", title: "ChatGPT Plus 直充", price: 100, status: "in_stock" }),
   makeOffer({ id: "cheap-out", title: "ChatGPT Plus 直充", price: 1, status: "out_of_stock" }),
@@ -120,7 +153,7 @@ assert.equal(plusGroup.offerCount, 3, "Hidden offers should not be counted.");
 assert.equal(plusGroup.lowestPriceLabel, "有货", "Available lowest offer should be labelled as in stock.");
 
 const outOnlyGroups = buildProductGroups([
-  makeOffer({ id: "out-only", title: "ChatGPT Pro 20倍 官方充值", price: 20, status: "out_of_stock" }),
+  makeOffer({ id: "out-only", title: "ChatGPT Pro 20倍 官方充值", price: 200, status: "out_of_stock" }),
 ]);
 const pro20Group = outOnlyGroups.find((group) => group.id === "chatgpt-pro-20x");
 assert.ok(pro20Group, "ChatGPT Pro 20x group should exist.");
@@ -128,7 +161,20 @@ assert.equal(pro20Group.lowestOffer, null, "All out-of-stock products should not
 assert.equal(pro20Group.lowestPrice, null, "All out-of-stock products should not expose a lowest price.");
 assert.equal(pro20Group.lowestPriceLabel, "暂无有货价", "All out-of-stock products should use the no-available-price label.");
 
-console.log(`catalog test passed cases=${cases.length}`);
+const priceFloorGroups = buildProductGroups([
+  makeOffer({ id: "too-cheap-pro", title: "ChatGPT Pro 20x 官方充值", price: 199, status: "in_stock" }),
+  makeOffer({ id: "valid-pro", title: "ChatGPT Pro 20x 官方充值", price: 200, status: "in_stock" }),
+]);
+assert.ok(
+  priceFloorGroups.find((group) => group.id === "other-product")?.offers.some((offer) => offer.id === "too-cheap-pro"),
+  "Price-floor-blocked offers should remain in Other instead of falling back to stored product ids.",
+);
+assert.ok(
+  priceFloorGroups.find((group) => group.id === "chatgpt-pro-20x")?.offers.some((offer) => offer.id === "valid-pro"),
+  "Offers at the floor should stay in the target product.",
+);
+
+console.log(`catalog test passed cases=${cases.length + priceCases.length}`);
 
 function makeOffer({
   id,

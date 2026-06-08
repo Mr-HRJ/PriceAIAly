@@ -29,6 +29,7 @@ const analyzedOffers = offers.map((offer) => ({
   nextProductId: catalog.classifyOffer(offer.source_title || "", {
     tags: offer.tags,
     categorySlug: offer.category_slug,
+    price: offer.price,
   }).id,
   normalizedTitle: String(offer.source_title || "").toLowerCase(),
 }));
