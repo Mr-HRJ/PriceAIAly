@@ -4,7 +4,7 @@ import { PriceExplorer } from "@/components/PriceExplorer";
 import { SubmissionFloater } from "@/components/SubmissionFloater";
 import { getExplorerData } from "@/lib/data";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: "AI 订阅与模型 API 获取成本雷达",

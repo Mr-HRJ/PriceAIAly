@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { UmamiAnalytics } from "@/components/UmamiAnalytics";
 import "./globals.css";
-
-const enableVercelSpeedInsights = process.env.NEXT_PUBLIC_VERCEL_SPEED_INSIGHTS === "true";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://priceai.cc"),
@@ -45,7 +42,6 @@ export default function RootLayout({
     <html lang="zh-CN" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         {children}
-        {enableVercelSpeedInsights ? <SpeedInsights /> : null}
         <GoogleAnalytics />
         <UmamiAnalytics />
       </body>

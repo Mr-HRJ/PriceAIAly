@@ -20,7 +20,7 @@ import { getOfficialPricesDataset } from "@/lib/official-prices-db";
 import type { ExplorerProductSummary } from "@/lib/types";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 export const dynamicParams = true;
 
 export function generateStaticParams() {
