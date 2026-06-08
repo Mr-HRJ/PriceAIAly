@@ -1,59 +1,91 @@
 import type { Metadata } from "next";
-import { ArrowRight, BookOpenText, CheckCircle2 } from "lucide-react";
+import { ArrowRight, BookOpenText, Flag, Send, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { FeedbackLink } from "@/components/FeedbackLink";
 import { GuideDocsLayout } from "@/components/GuideDocsLayout";
-import { GuidesDirectory } from "@/components/GuidesDirectory";
 import { JsonLd } from "@/components/JsonLd";
-import {
-  getGuideCategory,
-  getGuidePathStepEntry,
-  guideEntries,
-  guideReadingPaths,
-} from "@/lib/guides";
+import { getGuideCategory, guideEntries } from "@/lib/guides";
 
 export const revalidate = 86400;
 
 const pageUrl = "https://priceai.cc/guides";
 
 export const metadata: Metadata = {
-  title: "AI 订阅快速入门：价格、官方订阅、支付方式和渠道判断",
+  title: "PriceAI 快速入门：如何比价、判断渠道、提交渠道和反馈问题",
   description:
-    "PriceAI AI 订阅快速入门，先理解价格分层、官方订阅、支付方式和第三方渠道判断，再按需查看全部指南索引。",
+    "PriceAI 快速入门，了解这个 AI 订阅比价工具能做什么，如何查卡网渠道、官方地区价、模型 API，以及如何提交渠道、举报商品和反馈建议。",
   alternates: {
     canonical: "/guides",
   },
   openGraph: {
-    title: "AI 订阅快速入门：价格、官方订阅、支付方式和渠道判断 | PriceAI",
-    description: "从价格来源、官方订阅、支付方式和第三方渠道判断开始，快速理解 AI 订阅购买前要看什么。",
+    title: "PriceAI 快速入门：如何比价、判断渠道、提交渠道和反馈问题 | PriceAI",
+    description: "了解 PriceAI 的定位、使用路径、渠道判断边界、提交渠道、举报商品和意见反馈入口。",
     url: pageUrl,
   },
 };
 
-const quickStartSteps = [
+const productEntrances = [
   {
-    title: "先搞懂价格为什么差很多",
-    text: "官网正价、官方地区价、代充价、成品号和卡密不是同一种东西。先看懂价格来源，再比较最低价。",
-    href: "/guides/why-ai-subscription-prices-differ",
-  },
-  {
-    title: "再判断自己能不能走官方路径",
-    text: "如果你想自己订阅，先看官网、App Store、Google Play、支付卡和礼品卡这些基础条件。",
-    href: "/guides/how-to-subscribe-ai-officially",
-  },
-  {
-    title: "最后回到 PriceAI 看当前有货报价",
-    text: "如果准备看第三方渠道，重点核验来源、原始标题、库存、更新时间、售后和投诉入口。",
+    title: "查第三方订阅渠道",
+    text: "适合想比较 ChatGPT、Claude、Gemini、Grok 等卡网渠道报价的人。选择平台或商品后，重点看价格、来源、库存、更新时间和原始商品标题。",
     href: "/?stock=available",
+  },
+  {
+    title: "看官方订阅地区价",
+    text: "适合想自己走官方订阅的人。先看官网价和地区价，再结合支付方式、税费、汇率、账户地区和续费风险判断是否适合自己。",
+    href: "/official-prices",
+  },
+  {
+    title: "找模型 API 渠道",
+    text: "适合想比较模型 API、免费额度、官方或公开 API 渠道的人。先看供应商、模型、计价方式和额度，再决定是否深入了解。",
+    href: "/api-models",
   },
 ];
 
-const commonEntrances = [
-  { label: "卡网渠道靠谱吗", href: "/guides/are-ai-subscription-card-shops-reliable" },
-  { label: "ChatGPT 获取方式", href: "/guides/chatgpt-subscription-options" },
-  { label: "Apple ID 订阅 AI", href: "/guides/apple-id-ai-subscription" },
-  { label: "Google Play 订阅 AI", href: "/guides/google-play-ai-subscription" },
-  { label: "订阅 AI 需要什么支付卡", href: "/guides/visa-card-for-ai-subscription" },
-  { label: "AI 订阅礼品卡限制", href: "/guides/ai-subscription-gift-card" },
+const verificationSteps = [
+  "点进商品详情，看原始渠道、原始标题、库存、更新时间和购买链接。",
+  "跳转原渠道前，再看商品描述、售后入口、联系方式和平台投诉入口。",
+  "金额较大时，建议先联系卖家沟通细节，再判断是否转到闲鱼或其他中介担保型平台交易。",
+];
+
+const communityActions = [
+  {
+    title: "提交新渠道",
+    text: "如果你手里有更低价、更稳定的 AI 订阅渠道，可以提交给 PriceAI。每个人发现的渠道都有限，但大家把自己的低价渠道贡献出来，后面所有人都能少翻 Telegram、少刷闲鱼，直接在 PriceAI 里完成比价。好的平台需要大家一起共创。",
+    href: "/?submit=channel",
+    label: "提交渠道",
+    icon: Send,
+  },
+  {
+    title: "举报问题商品",
+    text: "如果发现某个商品价格不对、链接下架、描述异常，或者疑似虚假渠道，可以在商品详情页反馈。我们会根据反馈判断是否下架商品或暂停渠道展示。",
+    href: "/?stock=available",
+    label: "查找商品",
+    icon: Flag,
+  },
+];
+
+const furtherReading = [
+  {
+    title: "AI 订阅价格为什么差很多",
+    text: "先理解官网正价、地区价、资格价、代充价和第三方渠道价。",
+    href: "/guides/why-ai-subscription-prices-differ",
+  },
+  {
+    title: "卡网渠道靠谱吗",
+    text: "把卡网理解成信息源和交易入口，学习购买前的核验清单。",
+    href: "/guides/are-ai-subscription-card-shops-reliable",
+  },
+  {
+    title: "如何自己完成官方订阅",
+    text: "从官网、App Store、Google Play、支付方式和售后入口理解官方路径。",
+    href: "/guides/how-to-subscribe-ai-officially",
+  },
+  {
+    title: "ChatGPT 获取方式",
+    text: "区分 Plus、Pro、Team、成品号、代充、CDK 和 API/CDK。",
+    href: "/guides/chatgpt-subscription-options",
+  },
 ];
 
 export default function GuidesIndexPage() {
@@ -68,24 +100,24 @@ export default function GuidesIndexPage() {
               快速入门
             </div>
             <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight tracking-normal text-[#202829] sm:text-5xl">
-              AI 订阅怎么选，先看这三步。
+              第一次用 PriceAI，先看这份入门说明。
             </h1>
             <p className="mt-5 max-w-[72ch] text-base leading-8 text-[#5a6061]">
-              如果你刚接触 AI 订阅渠道，不需要先打开所有文章。先理解价格来源，再判断官方路径是否适合你，最后回到 PriceAI 查看当前有货报价和来源。
+              PriceAI 是一个 AI 订阅和模型 API 的比价工具。它把分散在不同渠道里的价格、库存、来源、原始商品标题和更新时间整理到一起，帮助你少开几个网页，先完成比较，再决定是否跳转到原渠道购买。
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a
-                href="#quick-start"
+                href="#use-priceai"
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#2d3435] px-4 text-sm font-semibold text-[#f8f8f8] transition hover:bg-[#202829]"
               >
-                开始快速入门
+                看怎么使用
                 <ArrowRight size={15} />
               </a>
               <a
-                href="#all-guides"
+                href="#contribute"
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#edf0f1] px-4 text-sm font-semibold text-[#2d3435] transition hover:bg-[#dde4e5]"
               >
-                全部指南索引
+                提交渠道或反馈
                 <ArrowRight size={15} />
               </a>
               <Link
@@ -98,25 +130,25 @@ export default function GuidesIndexPage() {
             </div>
           </section>
 
-          <section id="quick-start" className="mt-10 border-b border-[#dfe4e5] pb-10">
-            <p className="text-xs font-semibold text-[#7a8182]">新手路径</p>
-            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">快速入门</h2>
+          <section id="use-priceai" className="mt-10 border-b border-[#dfe4e5] pb-10">
+            <p className="text-xs font-semibold text-[#7a8182]">按目的选择入口</p>
+            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">你可以怎么用 PriceAI</h2>
             <div className="mt-6 divide-y divide-[#dfe4e5] border-y border-[#dfe4e5]">
-              {quickStartSteps.map((step, index) => (
+              {productEntrances.map((item, index) => (
                 <Link
-                  key={step.href}
-                  href={step.href}
+                  key={item.href}
+                  href={item.href}
                   className="group grid gap-3 py-5 transition hover:bg-[#edf0f1]/60 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:px-2"
                 >
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#edf0f1] text-sm font-bold text-[#5a6061] group-hover:bg-[#dde4e5]">
                     {index + 1}
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-semibold text-[#202829]">{step.title}</span>
-                    <span className="mt-1 block text-sm leading-6 text-[#5a6061]">{step.text}</span>
+                    <span className="block font-semibold text-[#202829]">{item.title}</span>
+                    <span className="mt-1 block text-sm leading-6 text-[#5a6061]">{item.text}</span>
                   </span>
                   <span className="hidden items-center text-sm font-semibold text-[#2d3435] sm:inline-flex">
-                    查看
+                    进入
                     <ArrowRight size={15} className="ml-1 transition group-hover:translate-x-0.5" />
                   </span>
                 </Link>
@@ -124,80 +156,91 @@ export default function GuidesIndexPage() {
             </div>
           </section>
 
-          <section id="reading-paths" className="mt-10 border-b border-[#dfe4e5] pb-10">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold text-[#7a8182]">按问题阅读</p>
-                <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">常用路径</h2>
-                <p className="mt-2 max-w-[72ch] text-sm leading-7 text-[#5a6061]">
-                  如果你已经知道自己要解决哪类问题，可以按路径继续读。
-                </p>
-              </div>
-              <a
-                href="#all-guides"
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-[#edf0f1] px-4 text-sm font-semibold text-[#2d3435] transition hover:bg-[#dde4e5]"
-              >
-                直接看全部目录
-                <ArrowRight size={15} />
-              </a>
+          <section id="verify" className="mt-10 border-b border-[#dfe4e5] pb-10">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#2f7a4b]">
+              <ShieldCheck size={15} />
+              购买前核验
             </div>
-
-            <div className="mt-6 divide-y divide-[#dfe4e5] border-y border-[#dfe4e5]">
-              {guideReadingPaths.map((path) => (
-                <div key={path.id} className="grid gap-4 py-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-                  <div>
-                    <p className="text-xs font-semibold text-[#2f7a4b]">{path.audience}</p>
-                    <h3 className="mt-2 font-semibold text-[#202829]">{path.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[#5a6061]">{path.description}</p>
-                  </div>
-                  <ol className="space-y-2">
-                    {path.steps.map((step, index) => {
-                      const guide = getGuidePathStepEntry(step);
-
-                      return (
-                        <li key={step.href}>
-                          <Link
-                            href={step.href}
-                            className="group grid gap-3 rounded-md px-2 py-2 transition hover:bg-[#edf0f1] sm:grid-cols-[28px_minmax(0,1fr)]"
-                          >
-                            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#edf0f1] text-xs font-bold text-[#5a6061] group-hover:bg-[#dde4e5]">
-                              {index + 1}
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block text-sm font-semibold text-[#202829]">{guide?.title ?? step.label}</span>
-                              <span className="mt-1 block text-xs leading-5 text-[#5a6061]">{step.description}</span>
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
+            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">PriceAI 是信息聚合工具，不是卖家背书。</h2>
+            <p className="mt-4 max-w-[72ch] text-sm leading-7 text-[#5a6061]">
+              第三方渠道更像一个信息源和交易入口。PriceAI 会整理价格、库存、来源和更新时间，但不会替任何卖家承诺交付。真正购买前，仍然建议你回到原渠道做一次核验。
+            </p>
+            <ol className="mt-6 divide-y divide-[#dfe4e5] border-y border-[#dfe4e5]">
+              {verificationSteps.map((step, index) => (
+                <li key={step} className="grid gap-3 py-4 sm:grid-cols-[32px_minmax(0,1fr)]">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#e8f3ec] text-xs font-bold text-[#2f7a4b]">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm leading-7 text-[#5a6061]">{step}</span>
+                </li>
               ))}
+            </ol>
+          </section>
+
+          <section id="contribute" className="mt-10 border-b border-[#dfe4e5] pb-10">
+            <p className="text-xs font-semibold text-[#7a8182]">共建 PriceAI</p>
+            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">把你知道的低价渠道贡献出来。</h2>
+            <p className="mt-4 max-w-[72ch] text-sm leading-7 text-[#5a6061]">
+              PriceAI 想成为大家获取 AI 订阅和模型 API 前的首选比价处，而不是每个人都去 Telegram、闲鱼或群聊里重新翻一遍资料。众人拾柴火焰高，渠道越多人一起补充，后面每个人做选择都会更省力。
+            </p>
+            <div className="mt-6 divide-y divide-[#dfe4e5] border-y border-[#dfe4e5]">
+              {communityActions.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    className="group grid gap-4 py-5 transition hover:bg-[#edf0f1]/60 sm:grid-cols-[32px_minmax(0,1fr)_auto] sm:px-2"
+                  >
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#edf0f1] text-[#5a6061] group-hover:bg-[#dde4e5] group-hover:text-[#202829]">
+                      <Icon size={16} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-[#202829]">{item.title}</span>
+                      <span className="mt-1 block text-sm leading-7 text-[#5a6061]">{item.text}</span>
+                    </span>
+                    <span className="inline-flex items-center text-sm font-semibold text-[#2d3435]">
+                      {item.label}
+                      <ArrowRight size={15} className="ml-1 transition group-hover:translate-x-0.5" />
+                    </span>
+                  </Link>
+                );
+              })}
+              <div className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-2">
+                <div>
+                  <h3 className="font-semibold text-[#202829]">提交平台建议</h3>
+                  <p className="mt-1 text-sm leading-7 text-[#5a6061]">
+                    如果你对 PriceAI 这个平台本身有建议，比如希望增加哪些功能、哪些体验需要改进、哪些分类或运营规则不合理，或者功能侧、运营侧还有其他想法，都可以通过意见反馈告诉我们。这里收的是对平台的建议，不只是页面 Bug。
+                  </p>
+                </div>
+                <FeedbackLink />
+              </div>
             </div>
           </section>
 
-          <section className="mt-10 border-b border-[#dfe4e5] pb-10">
-            <p className="text-xs font-semibold text-[#7a8182]">常见入口</p>
-            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">直接看具体问题</h2>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {commonEntrances.map((item) => (
+          <section id="next-reading" className="mt-10">
+            <p className="text-xs font-semibold text-[#7a8182]">继续了解</p>
+            <h2 className="mt-3 font-serif text-3xl font-semibold tracking-normal text-[#202829]">需要细看时，再读这些指南。</h2>
+            <div className="mt-6 divide-y divide-[#dfe4e5] border-y border-[#dfe4e5]">
+              {furtherReading.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex items-center justify-between gap-3 rounded-md py-3 text-sm font-semibold text-[#202829] transition hover:bg-[#edf0f1] sm:px-3"
+                  className="group grid gap-2 py-4 transition hover:bg-[#edf0f1]/60 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-2"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <CheckCircle2 size={15} className="text-[#2f7a4b]" />
-                    {item.label}
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-[#202829]">{item.title}</span>
+                    <span className="mt-1 block text-sm leading-6 text-[#5a6061]">{item.text}</span>
                   </span>
-                  <ArrowRight size={15} className="text-[#7a8182] transition group-hover:translate-x-0.5 group-hover:text-[#2d3435]" />
+                  <span className="inline-flex items-center text-sm font-semibold text-[#2d3435]">
+                    阅读
+                    <ArrowRight size={15} className="ml-1 transition group-hover:translate-x-0.5" />
+                  </span>
                 </Link>
               ))}
             </div>
           </section>
-
-          <GuidesDirectory />
         </article>
       </GuideDocsLayout>
     </>
@@ -209,10 +252,10 @@ function buildGuidesJsonLd() {
     {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "AI 订阅快速入门",
+      name: "PriceAI 快速入门",
       inLanguage: "zh-CN",
       url: pageUrl,
-      description: "PriceAI AI 订阅快速入门，先理解价格、官方订阅、支付方式和第三方渠道判断。",
+      description: "PriceAI 快速入门，了解如何比价、判断渠道、提交渠道和反馈问题。",
       isPartOf: {
         "@type": "WebSite",
         name: "PriceAI",
