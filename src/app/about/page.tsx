@@ -6,7 +6,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Code2,
-  ExternalLink,
   Globe2,
   Radar,
   Search,
@@ -402,15 +401,6 @@ export default async function AboutPage() {
               开始比价
               <ArrowRight size={16} />
             </Link>
-            <a
-              href="https://github.com/physics-dimension/PriceAI"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#f8f8f8]/10 px-5 text-sm font-semibold text-[#f8f8f8] ring-1 ring-[#f8f8f8]/20 transition hover:-translate-y-0.5 hover:bg-[#f8f8f8]/15"
-            >
-              GitHub
-              <ExternalLink size={15} />
-            </a>
           </div>
         </section>
       </div>
