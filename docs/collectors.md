@@ -26,6 +26,24 @@ npm run collect:prices -- --list
 npm run collect:prices -- --all --post
 ```
 
+排除某一类采集器：
+
+```bash
+npm run collect:prices -- --all --post --exclude-kind dujiao
+```
+
+只采集某一类采集器，例如 `dujiao` 并发 2 试点：
+
+```bash
+npm run collect:prices -- --all --kind dujiao --concurrency 2 --post
+```
+
+只采集 `shopApi`，按不同主域并发 2，同一主域内部仍然串行：
+
+```bash
+npm run collect:prices -- --all --kind shopApi --concurrency 2 --post --liandong-shop-limit 10
+```
+
 采集单个来源并写入：
 
 ```bash
@@ -50,6 +68,22 @@ npm run collect:browser -- --url https://aisou.pro/ --password your-admin-passwo
 
 前台只展示 `有货` 和 `缺货`。采集失败、重试中、解析失败、待开发采集器等状态属于后台诊断信息。
 
+## 采集性能与失败分组
+
+查看最近采集性能、慢来源、失败来源和失败原因分组：
+
+```bash
+npm run collect:performance -- --hours 24 --limit 1500
+```
+
+输出中的 `Failure groups` 可用于判断后续处理方向：
+
+- `missing-shop-token`：补正确店铺入口或从商品链接反查店铺入口。
+- `waf-or-challenge`：不要直接判缺货，应降低频率、换节点或进入待开发采集器。
+- `empty-result`：检查入口是否下架或页面结构是否变化。
+- `network`：检查采集节点网络，国内风控站点优先放到国内节点。
+- `partial-batch`：优先确认分页和分批写入是否完整，通常不是解析器完全失败。
+
 ## 新增来源流程
 
 1. 后台或脚本新增来源 URL。
@@ -70,6 +104,12 @@ npm run collect:browser -- --url https://aisou.pro/ --password your-admin-passwo
 ## 链动小铺类渠道策略
 
 `pay.ldxp.cn`、`pay.qxvx.cn`、`catfk.com` 等 `shopApi` 渠道属于同一类“一个主域承载多个店铺”的来源。大量新增这类店铺时，不能把每个店铺都当成完全独立站点并在同一轮里连续请求，否则容易触发 JS 挑战、验证码、WAF 或 IP 限流。
+
+当前 `shopApi` 专项采集采用“跨主域并发、同主域串行”的策略：
+
+- `pay.ldxp.cn`、`pay.qxvx.cn`、`catfk.com` 等不同主域可以并行。
+- 同一个主域内的多个店铺暂时仍然串行。
+- 单主域内部并发 2 需要后续单独压测后再决定。
 
 当前批量采集默认启用渠道族保护：
 

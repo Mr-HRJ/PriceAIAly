@@ -32,6 +32,8 @@ const AUTO_DETECT_COLLECTOR_KINDS = [
 ];
 
 export async function runPriceCollection(options = {}) {
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
   const targets = await loadTargets();
   const selectedTargets = selectTargets(targets, options);
   const logger = options.silent ? null : console;
@@ -43,9 +45,10 @@ export async function runPriceCollection(options = {}) {
   }
 
   const groups = targetGroupsForCollection(selectedTargets);
+  const concurrency = concurrencyFor(options);
   const summary = (await runWithConcurrency(
     groups,
-    concurrencyFor(options),
+    concurrency,
     async (group) => {
       const results = [];
       for (const target of group.targets) {
@@ -54,15 +57,27 @@ export async function runPriceCollection(options = {}) {
       return results;
     },
   )).flat();
+  const finishedAt = new Date().toISOString();
+  const performance = buildCollectionPerformanceReport({
+    summary,
+    targets: selectedTargets,
+    groups,
+    concurrency,
+    startedAt,
+    finishedAt,
+    durationMs: Date.now() - startedAtMs,
+  });
 
   return {
     summary,
+    performance,
     targetCount: selectedTargets.length,
     successCount: summary.filter((item) => item.status === "success").length,
     failureCount: summary.filter((item) => item.status !== "success" && item.status !== "skipped").length,
     skippedCount: summary.filter((item) => item.status === "skipped").length,
     offerCount: summary.reduce((sum, item) => sum + item.offers, 0),
-    finishedAt: new Date().toISOString(),
+    startedAt,
+    finishedAt,
   };
 }
 
@@ -187,7 +202,7 @@ export async function probeSource(options = {}) {
 
   if (!target.kind) {
     const detected = shouldAutoDetectCollector(options)
-      ? await detectCollectorByProbe(target, options, limit)
+      ? await detectCollectorByProbe(target, options)
       : null;
     if (detected?.offers?.length) {
       return probeSuccessResponse(detected.target, detected.offers, startedAt, limit, {
@@ -220,7 +235,7 @@ export async function probeSource(options = {}) {
       return probeSuccessResponse(target, offers, startedAt, limit);
     }
 
-    const detected = await detectCollectorByProbe(target, options, limit, [target.kind]);
+    const detected = await detectCollectorByProbe(target, options, [target.kind]);
     if (detected?.offers?.length) {
       return probeSuccessResponse(detected.target, detected.offers, startedAt, limit, {
         attempts: detected.attempts,
@@ -231,7 +246,7 @@ export async function probeSource(options = {}) {
     return probeSuccessResponse(target, offers, startedAt, limit, { attempts: detected?.attempts || [] });
   } catch (error) {
     if (shouldFallbackDetectCollector(options, target.kind)) {
-      const detected = await detectCollectorByProbe(target, options, limit, [target.kind]);
+      const detected = await detectCollectorByProbe(target, options, [target.kind]);
       if (detected?.offers?.length) {
         return probeSuccessResponse(detected.target, detected.offers, startedAt, limit, {
           attempts: detected.attempts,
@@ -256,7 +271,7 @@ export async function probeSource(options = {}) {
   }
 }
 
-async function detectCollectorByProbe(target, options = {}, limit = 12, skipKinds = []) {
+async function detectCollectorByProbe(target, options = {}, skipKinds = []) {
   const attempts = [];
   const skip = new Set(skipKinds.filter(Boolean));
   const candidates = collectorProbeCandidates(target).filter((kind) => !skip.has(kind));
@@ -352,6 +367,7 @@ if (isCli()) {
     .then((result) => {
       console.log("\nSummary");
       console.table(result.summary);
+      printCollectionPerformance(result.performance);
     })
     .catch((error) => {
       console.error(errorMessage(error));
@@ -371,7 +387,7 @@ async function collectTarget(target, options = {}) {
   if (target.kind === "getgptApi") return collectGetgptApi(target);
   if (target.kind === "publicProductsApi") return collectPublicProductsApi(target);
   if (target.kind === "shopUserProductsApi") return collectShopUserProductsApi(target, options);
-  if (target.kind === "unicornHtml") return collectUnicornHtml(target);
+  if (target.kind === "unicornHtml") return collectUnicornHtml(target, options);
   if (target.kind === "mooncakeCatalog") return collectMooncakeCatalog(target);
   if (target.kind === "genericHtml") return collectGenericHtml(target);
 
@@ -901,10 +917,10 @@ async function collectShopUserProductsApi(target, options = {}) {
   return offers;
 }
 
-async function collectUnicornHtml(target) {
+async function collectUnicornHtml(target, options = {}) {
   const html = await fetchText(target.sourceUrl);
   const blocks = [...html.matchAll(/<div class="card position-relative">[\s\S]*?(?=<div class="col">|<!-- goods end -->|<\/section>|<\/body>)/gi)];
-  const offers = [];
+  const cardOffers = [];
 
   for (const block of blocks) {
     const body = block[0];
@@ -915,24 +931,68 @@ async function collectUnicornHtml(target) {
     const stockCount = numberOrNull(body.match(/库存[:：]\s*(\d+)/)?.[1]);
     const soldOut = /缺货|售罄|已售罄|disabled|btn-secondary/i.test(body) || stockCount === 0;
     const href = body.match(/<a[^>]+href=["']([^"']*(?:\/buy\/\d+|\/product\/\d+)[^"']*)["']/i)?.[1];
+    const url = absolutize(href || target.sourceUrl, target.baseUrl);
 
-    offers.push(
-      makeOffer(target, {
-        title,
-        price,
-        status: soldOut ? "out_of_stock" : statusFromStock(stockCount),
-        stockCount: soldOut ? 0 : stockCount,
-        url: absolutize(href || target.sourceUrl, target.baseUrl),
-        tags: compact([
-          /自动发货/.test(body) ? "自动发货" : null,
-          /人工处理/.test(body) ? "人工处理" : null,
-          "页面解析",
-        ]),
-      }),
-    );
+    cardOffers.push({
+      title,
+      price,
+      status: soldOut ? "out_of_stock" : statusFromStock(stockCount),
+      stockCount: soldOut ? 0 : stockCount,
+      url,
+      tags: compact([
+        /自动发货/.test(body) ? "自动发货" : null,
+        /人工处理/.test(body) ? "人工处理" : null,
+        "页面解析",
+      ]),
+    });
   }
 
-  return dedupeOffers(offers);
+  const uniqueCardOffers = [...new Map(cardOffers.map((offer) => [offer.url, offer])).values()];
+  const expandedOffers = (await runWithConcurrency(
+    uniqueCardOffers,
+    unicornDetailConcurrencyFor(options),
+    async (cardOffer) => {
+      const skus = await fetchUnicornSkus(cardOffer.url).catch(() => []);
+      if (!skus.length) {
+        return [makeOffer(target, cardOffer)];
+      }
+
+      return skus.map((sku) =>
+        makeOffer(target, {
+          ...cardOffer,
+          title: cleanText(`${cardOffer.title} / ${sku.name}`),
+          price: sku.price,
+          tags: compact([...cardOffer.tags, "规格价"]),
+        }),
+      );
+    },
+  )).flat();
+
+  return dedupeOffers(expandedOffers);
+}
+
+async function fetchUnicornSkus(url) {
+  if (!/\/buy\/\d+/i.test(url)) return [];
+
+  const html = await fetchText(url);
+  const skus = [];
+  const pattern = /onclick=["']selectSku\((['"])((?:\\.|(?!\1).)*?)\1\s*,\s*(['"])([\d.,]+)\3/gi;
+  let match;
+
+  while ((match = pattern.exec(html))) {
+    const name = cleanText(decodeHtmlEntities(match[2].replace(/\\(['"\\])/g, "$1")));
+    const price = numberOrNull(match[4]);
+    if (!name || price === null) continue;
+    skus.push({ name, price });
+  }
+
+  return skus;
+}
+
+function unicornDetailConcurrencyFor(options = {}) {
+  const value = Number(options.unicornDetailConcurrency || options["unicorn-detail-concurrency"] || 4);
+  if (!Number.isFinite(value)) return 4;
+  return Math.max(1, Math.min(Math.trunc(value), 8));
 }
 
 async function collectMooncakeCatalog(target) {
@@ -1429,7 +1489,9 @@ function stableId(...parts) {
 function selectTargets(targets, options) {
   const selected = options.source || options.id || options.name;
   const runnable = (target) => target.kind;
-  const applyExclusions = (items) => items.filter((target) => !shouldExcludeTarget(target, options));
+  const applyExclusions = (items) => items
+    .filter((target) => matchesTargetKinds(target, options))
+    .filter((target) => !shouldExcludeTarget(target, options));
   if (!selected && !options.all) return applyExclusions(targets.filter(runnable));
   if (options.all) return applyExclusions(targets.filter(runnable));
 
@@ -1475,11 +1537,130 @@ async function runWithConcurrency(items, concurrency, worker) {
   return results;
 }
 
+function buildCollectionPerformanceReport({
+  summary,
+  targets,
+  groups,
+  concurrency,
+  startedAt,
+  finishedAt,
+  durationMs,
+}) {
+  const byKind = aggregateCollectionBy(summary, (item) => item.kind || "unknown");
+  const byStatus = aggregateCollectionBy(summary, (item) => item.status || "unknown");
+  const slowestTargets = [...summary]
+    .sort((a, b) => Number(b.ms || 0) - Number(a.ms || 0))
+    .slice(0, 10)
+    .map((item) => ({
+      sourceId: item.sourceId,
+      source: item.source,
+      kind: item.kind,
+      status: item.status,
+      offers: item.offers,
+      attempts: item.attempts,
+      ms: item.ms,
+      message: item.message || null,
+    }));
+  const multiTargetGroups = groups
+    .filter((group) => group.targets.length > 1)
+    .map((group) => ({
+      key: group.key,
+      targetCount: group.targets.length,
+      sourceIds: group.targets.map((target) => target.sourceId),
+    }))
+    .sort((a, b) => b.targetCount - a.targetCount);
+
+  return {
+    startedAt,
+    finishedAt,
+    durationMs,
+    concurrency,
+    targetCount: targets.length,
+    groupCount: groups.length,
+    multiTargetGroupCount: multiTargetGroups.length,
+    offers: summary.reduce((sum, item) => sum + Number(item.offers || 0), 0),
+    byStatus,
+    byKind,
+    slowestTargets,
+    multiTargetGroups: multiTargetGroups.slice(0, 10),
+  };
+}
+
+function aggregateCollectionBy(items, keyForItem) {
+  const map = new Map();
+
+  for (const item of items) {
+    const key = String(keyForItem(item) || "unknown");
+    const existing = map.get(key) || {
+      key,
+      targets: 0,
+      offers: 0,
+      attempts: 0,
+      totalMs: 0,
+      maxMs: 0,
+      success: 0,
+      failed: 0,
+      skipped: 0,
+    };
+
+    existing.targets += 1;
+    existing.offers += Number(item.offers || 0);
+    existing.attempts += Number(item.attempts || 0);
+    existing.totalMs += Number(item.ms || 0);
+    existing.maxMs = Math.max(existing.maxMs, Number(item.ms || 0));
+    if (item.status === "success") existing.success += 1;
+    else if (item.status === "skipped") existing.skipped += 1;
+    else existing.failed += 1;
+    map.set(key, existing);
+  }
+
+  return [...map.values()]
+    .map((entry) => ({
+      ...entry,
+      avgMs: entry.targets ? Math.round(entry.totalMs / entry.targets) : 0,
+    }))
+    .sort((a, b) => b.totalMs - a.totalMs);
+}
+
+function printCollectionPerformance(performance) {
+  if (!performance) return;
+
+  console.log("\nPerformance");
+  console.table([
+    {
+      targets: performance.targetCount,
+      groups: performance.groupCount,
+      concurrency: performance.concurrency,
+      durationMs: performance.durationMs,
+      offers: performance.offers,
+      multiTargetGroups: performance.multiTargetGroupCount,
+    },
+  ]);
+
+  if (performance.byKind?.length) {
+    console.log("\nBy collector kind");
+    console.table(performance.byKind);
+  }
+
+  if (performance.slowestTargets?.length) {
+    console.log("\nSlowest targets");
+    console.table(performance.slowestTargets);
+  }
+}
+
 function hasTargetFilters(options = {}) {
   return Boolean(
     options.source ||
       options.id ||
       options.name ||
+      options.kind ||
+      options.kinds ||
+      options["collector-kind"] ||
+      options["collector-kinds"] ||
+      options.excludeKind ||
+      options["exclude-kind"] ||
+      options.excludeKinds ||
+      options["exclude-kinds"] ||
       options.excludeFamily ||
       options["exclude-family"] ||
       options.excludeFamilies ||
@@ -1488,9 +1669,25 @@ function hasTargetFilters(options = {}) {
 }
 
 function shouldExcludeTarget(target, options = {}) {
+  const kinds = optionList(options.excludeKind || options["exclude-kind"] || options.excludeKinds || options["exclude-kinds"]);
+  if (
+    kinds.includes(String(target.kind || "").toLowerCase()) ||
+    kinds.includes(String(target.configuredKind || "").toLowerCase())
+  ) {
+    return true;
+  }
+
   const families = optionList(options.excludeFamily || options["exclude-family"] || options.excludeFamilies || options["exclude-families"]);
   if (families.includes("liandong-shop") && isLiandongShopTarget(target)) return true;
   return false;
+}
+
+function matchesTargetKinds(target, options = {}) {
+  const kinds = optionList(options.kind || options.kinds || options["collector-kind"] || options["collector-kinds"]);
+  if (!kinds.length) return true;
+
+  return kinds.includes(String(target.kind || "").toLowerCase()) ||
+    kinds.includes(String(target.configuredKind || "").toLowerCase());
 }
 
 function isLiandongShopTarget(target) {
@@ -1939,10 +2136,21 @@ function localized(value) {
 function cleanText(value) {
   return String(value || "")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&(quot|amp|lt|gt|apos|#039);/gi, (match) => decodeHtmlEntities(match))
     .replace(/&nbsp;/g, " ")
     .replace(/&#x?[a-f0-9]+;/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&quot;/gi, `"`)
+    .replace(/&#039;/g, `'`)
+    .replace(/&apos;/gi, `'`)
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
 }
 
 function stripHtml(value) {
