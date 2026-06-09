@@ -13,7 +13,22 @@ const repoRoot = path.resolve(__dirname, "..");
 const configDir = path.join(repoRoot, "config", "official-prices");
 const defaultOutPath = path.join(repoRoot, "data", "official-prices", "latest.json");
 const userAgent =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) PriceAI/1.0";
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+// Apple App Store storefront IDs by country code. Sent via the
+// `X-Apple-Store-Front: <id>,26` header so the App Store serves the requested
+// region's data instead of geo-redirecting (e.g. a China-hosted IP would
+// otherwise be bounced to the /cn/ store). 26 = the desktop-web platform id.
+const STOREFRONT_IDS = {
+  US: 143441, GB: 143444, CA: 143455, AU: 143460, NZ: 143461, JP: 143462,
+  HK: 143463, SG: 143464, KR: 143466, IN: 143467, MX: 143468, TW: 143470,
+  VN: 143471, ZA: 143472, MY: 143473, PH: 143474, TH: 143475, ID: 143476,
+  PK: 143477, PL: 143478, TR: 143480, HU: 143482, RO: 143487, CZ: 143489,
+  IL: 143491, UA: 143492, DE: 143443, FR: 143442, ES: 143454, IT: 143450,
+  NL: 143452, IE: 143449, PT: 143453, BE: 143446, AT: 143445, FI: 143447,
+  GR: 143448, CH: 143459, SE: 143456, NO: 143457, DK: 143458, BR: 143503,
+  AR: 143505, CO: 143501, PE: 143507, EG: 143516, NG: 143561,
+};
 
 const DEFAULT_TIMEOUT_MS = 25000;
 const FETCH_DELAY_MS = 250;
@@ -65,7 +80,10 @@ export async function collectOfficialPrices(options = {}) {
       const startedAt = Date.now();
 
       try {
-        const html = await fetchText(sourceUrl, { timeoutMs: Number(options.timeoutMs || options.timeout || DEFAULT_TIMEOUT_MS) });
+        const html = await fetchText(sourceUrl, {
+          timeoutMs: Number(options.timeoutMs || options.timeout || DEFAULT_TIMEOUT_MS),
+          storefront: STOREFRONT_IDS[region.countryCode],
+        });
         const rawItems = extractInAppPurchasePairs(html, sourceUrl);
 
         if (!rawItems.length) {
@@ -697,16 +715,20 @@ export function loadFallbackFxSnapshot(currencies, latestPath = defaultOutPath) 
   }
 }
 
-async function fetchText(url, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function fetchText(url, { timeoutMs = DEFAULT_TIMEOUT_MS, storefront } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers = {
+      "accept-language": "en-US,en;q=0.9",
+      "user-agent": userAgent,
+    };
+    // Force the App Store storefront so geo-IP can't redirect us elsewhere.
+    if (storefront) headers["X-Apple-Store-Front"] = `${storefront},26`;
+
     const response = await fetch(url, {
-      headers: {
-        "accept-language": "en-US,en;q=0.9",
-        "user-agent": userAgent,
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -724,6 +746,12 @@ async function fetchText(url, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
 }
 
 export function extractInAppPurchasePairs(html, sourceUrl = "") {
+  // The App Store now serves a JSON "shoebox" (storePlatformData) when fetched
+  // with a storefront header; fall back to the legacy text-pair HTML otherwise.
+  if (html.trimStart().startsWith("{")) {
+    return extractInAppPurchasesFromShoebox(html, sourceUrl);
+  }
+
   const output = [];
   const seen = new Set();
   const pairPattern = /<div class="text-pair[^"]*"[^>]*>\s*<span>([\s\S]*?)<\/span>\s*<span>([\s\S]*?)<\/span>\s*<\/div>/g;
@@ -743,6 +771,40 @@ export function extractInAppPurchasePairs(html, sourceUrl = "") {
       sourceUrl,
       rawSnippetHash: hashSnippet(match[0]),
     });
+  }
+
+  return output;
+}
+
+// Parse in-app-purchase name/price pairs out of the App Store shoebox JSON.
+// The IAP list lives at pageData.addOns[].{name, price}.
+function extractInAppPurchasesFromShoebox(jsonText, sourceUrl = "") {
+  const output = [];
+  const seen = new Set();
+
+  let data;
+  try {
+    data = JSON.parse(jsonText);
+  } catch {
+    return output;
+  }
+
+  const addOns = data?.pageData?.addOns || [];
+  for (const offer of addOns) {
+      const title = decodeHtmlText(offer?.name || "");
+      const priceText = normalizePriceText(decodeHtmlText(offer?.price || ""));
+      if (!title || !looksLikePrice(priceText)) continue;
+
+      const key = `${title} ${priceText}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      output.push({
+        title,
+        priceText,
+        sourceUrl,
+        rawSnippetHash: hashSnippet(`${title}|${priceText}`),
+      });
   }
 
   return output;
