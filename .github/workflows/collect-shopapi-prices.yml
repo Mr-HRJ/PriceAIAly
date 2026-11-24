@@ -1,10 +1,6 @@
 name: Collect ShopApi Prices
 
 on:
-  schedule:
-    # 与主采集任务和 dujiao 专项任务错开，只跑 shopApi 来源。
-    # shopApi 会按主域分组并发；同一主域内部仍然串行。
-    - cron: "5,35 * * * *"
   workflow_dispatch: {}
 
 concurrency:

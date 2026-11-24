@@ -1,9 +1,6 @@
 name: Collect Prices
 
 on:
-  schedule:
-    # 每 30 分钟跑一次（GitHub Actions cron 用 UTC，最小粒度 5 分钟，但官方建议 ≥ 10 分钟）
-    - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
 concurrency:

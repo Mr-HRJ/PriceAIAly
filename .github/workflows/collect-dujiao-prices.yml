@@ -1,9 +1,6 @@
 name: Collect Dujiao Prices
 
 on:
-  schedule:
-    # 与主采集任务错开 15 分钟，只跑 dujiao 来源并发 2。
-    - cron: "15,45 * * * *"
   workflow_dispatch: {}
 
 concurrency:
